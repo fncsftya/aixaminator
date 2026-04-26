@@ -1,0 +1,194 @@
+@using Aixaminator.Data
+@using Aixaminator.Features
+@using Microsoft.JSInterop
+@using System.Text.Json
+
+@implements IAsyncDisposable
+
+@inject IJSRuntime JS
+
+<div class="h-full flex flex-col gap-y-2">
+    @if (Active)
+    {
+        <div class="reader flex-1 overflow-y-auto p-4 bg-white rounded-sm"
+            style="@ReaderStyle">
+            <article>
+                @RenderPartText()
+            </article>
+        </div>
+
+        <div class="flex justify-between items-center">
+            <button class="primary w-28" @onclick="ViewPrevious">Previous</button>
+
+            <div class="flex items-center divide-x divide-gray-300 gap-x-4">
+                @if (Highlight is not null)
+                {
+                    <div class="flex items-center gap-x-2 pr-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" class="size-5" viewBox="0 0 16 16">
+                            <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0m-4.5 6.064-1.281-4.696A.5.5 0 0 0 9.736 9H6.264a.5.5 0 0 0-.483.368l-1.28 4.696A6.97 6.97 0 0 0 8 15c1.275 0 2.47-.34 3.5-.936m.873-.598a7 7 0 1 0-8.746 0l1.19-4.36a1.5 1.5 0 0 1 1.31-1.1l1.155-3.851c.213-.713 1.223-.713 1.436 0l1.156 3.851a1.5 1.5 0 0 1 1.31 1.1z" />
+                        </svg>
+
+                        <button @onclick=@(() => SaveHighlight("bg-amber-500")) title="Highlight yellow" class="highlight bg-amber-500">&nbsp;</button>
+                        <button @onclick=@(() => SaveHighlight("bg-red-500")) title="Highlight red" class="highlight bg-red-500">&nbsp;</button>
+                        <button @onclick=@(() => SaveHighlight("bg-green-500")) title="Highlight green" class="highlight bg-green-500">&nbsp;</button>
+                        <button @onclick=@(() => SaveHighlight("bg-sky-500")) title="Highlight blue" class="highlight bg-sky-500">&nbsp;</button>
+                        <button @onclick=@(() => SaveHighlight("bg-violet-500")) title="Highlight purple" class="highlight bg-violet-500">&nbsp;</button>
+                    </div>
+                }
+
+                <button class="primary" @onclick="() => StartAddingNote(false)">Add note</button>
+                <button class="primary" @onclick="() => StartAddingNote(true)">Add question</button>
+            </div>
+
+            <button class="primary w-28" @onclick="ViewNext">Next</button>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public Document Document { get; set; }
+
+    [Parameter]
+    public int Part { get; set; }
+
+    [Parameter]
+    public string PartText { get; set; }
+
+    [Parameter]
+    public bool Active { get; set; }
+
+    [Parameter]
+    public string ReaderStyle { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnViewPart { get; set; }
+
+    [Parameter]
+    public EventCallback<(bool IsQuestion, HighlightState Context)> OnAddNote { get; set; }
+
+    [Parameter]
+    public EventCallback<(string Color, HighlightState HighlightData)> OnSaveHighlight { get; set; }
+
+    private HighlightState? Highlight;
+    private IJSObjectReference? module;
+    private DotNetObjectReference<ReadMode>? dotNetHelper;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            module = await JS.InvokeAsync<IJSObjectReference>("import", "./Components/Modes/ReadMode.razor.js");
+            dotNetHelper = DotNetObjectReference.Create(this);
+            await module.InvokeVoidAsync("ReadModeHelpers.setDotNetHelper", dotNetHelper);
+            await module.InvokeVoidAsync("addHandlers");
+        }
+    }
+
+    [JSInvokable]
+    public async Task EnableHighlightMenu(string text, string locationJson)
+    {
+        HighlightLocation? location;
+        try
+        {
+            location = JsonSerializer.Deserialize<HighlightLocation>(locationJson);
+        }
+        catch (JsonException)
+        {
+            location = null;
+        }
+
+        if (location is null)
+        {
+            Highlight = null;
+            return;
+        }
+
+        Highlight = new HighlightState
+            {
+                Text = text,
+                Location = location,
+            };
+
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public async Task DisableHighlightMenu()
+    {
+        Highlight = null;
+        StateHasChanged();
+    }
+
+    public async Task SaveHighlight(string colour)
+    {
+        if (Document is null || Highlight is null)
+        {
+            return;
+        }
+
+        await OnSaveHighlight.InvokeAsync((colour, Highlight));
+
+        if (module is not null)
+        {
+            await module.InvokeVoidAsync("ReadModeHelpers.clearSelection");
+        }
+        Highlight = null;
+
+        StateHasChanged();
+    }
+
+    public async Task ViewPrevious()
+    {
+        if (Part > 0)
+        {
+            await OnViewPart.InvokeAsync(Part - 1);
+        }
+    }
+
+    public async Task ViewNext()
+    {
+        await OnViewPart.InvokeAsync(Part + 1);
+    }
+
+    public MarkupString RenderPartText()
+    {
+        if (Document is null)
+        {
+            return new MarkupString("The document could not be loaded.");
+        }
+
+        return Documents.DocumentPartToHtml(Document.Notes.Where(n => n.DocumentPartNumber == Part && n.IsHighlight), PartText);
+    }
+
+    public void StartAddingNote(bool isQuestion)
+    {
+        OnAddNote.InvokeAsync((isQuestion, Highlight));
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (module is not null)
+        {
+            try
+            {
+                await module.InvokeVoidAsync("removeHandlers");
+                await module.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+            catch (JSException)
+            {
+            }
+        }
+
+        dotNetHelper?.Dispose();
+    }
+
+    public class HighlightState
+    {
+        public string Text { get; set; }
+        public HighlightLocation Location { get; set; }
+    }
+} 

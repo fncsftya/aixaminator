@@ -1,0 +1,65 @@
+﻿@page "/"
+@using Aixaminator.Data
+@using Aixaminator.Features
+@using Aixaminator.Services
+@using Aixaminator.Utils
+@using Microsoft.Data.Sqlite
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.Extensions.VectorData
+@using Microsoft.SemanticKernel.Connectors.Sqlite
+@using Shared.AI.Data
+@using System.Text
+@using System.Text.RegularExpressions
+
+@inject AppDbContext Context
+@inject ISettingsService SettingsService
+
+<div class="flex flex-col h-full">
+    <nav class="p-2 border-b border-gray-300">
+        <ul class="flex gap-x-4">
+            <li><button @onclick="() => { currentView = HomePageView.MyDocuments; }" class="primary w-32">My Documents</button></li>
+            <li><button @onclick="() => { currentView = HomePageView.CreateDocument; }" class="primary w-32">Add Document</button></li>
+            <li><button @onclick="() => { currentView = HomePageView.Settings; }" class="primary w-32">Settings</button></li>
+        </ul>
+    </nav>
+
+    <div class="flex-1 p-4 overflow-y-auto">
+        @if (currentView == HomePageView.CreateDocument)
+        {
+            <CreateDocument />
+        }
+        else if (currentView == HomePageView.Settings)
+        {
+            <SettingsForm />
+        }
+        else
+        {
+            <MyDocuments />
+        }
+    </div>
+</div>
+
+@code {
+    private HomePageView currentView = HomePageView.MyDocuments;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (SettingsService.AttemptMigration)
+        {
+#if DEBUG
+            await Context.Database.MigrateAsync();
+#else
+            await Context.Database.EnsureCreatedAsync();
+#endif
+            SettingsService.AttemptMigration = false;
+        }
+        await SettingsService.Init();
+    }
+
+    private enum HomePageView
+    {
+        MyDocuments,
+        CreateDocument,
+        Settings,
+    }
+}

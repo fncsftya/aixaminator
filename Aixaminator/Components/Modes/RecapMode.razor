@@ -1,0 +1,271 @@
+@using Aixaminator.Data
+@using Aixaminator.Features
+@using Aixaminator.Utils
+@using Microsoft.EntityFrameworkCore
+@using Aixaminator.Services
+@using System.Text
+@using Aixaminator.Models
+
+@inject AppDbContext DbContext
+@inject IAiConnection AiConnection
+
+<div class="space-y-6">
+    <div class="overflow-hidden rounded-lg bg-white shadow-sm">
+        <div class="px-4 py-5 sm:p-6">
+            <h3 class="text-lg font-medium">Select parts for recap</h3>
+            <div class="mt-4 space-y-3 h-72 flex flex-col">
+                @if (VisiblePartNumbers.Count == 0)
+                {
+                    <p class="text-sm text-gray-500">No parts found in this document.</p>
+                }
+                else
+                {
+                    <div class="flex-1 overflow-y-auto">
+                        @foreach (var partNumber in VisiblePartNumbers)
+                        {
+                            <div class="flex items-center space-x-3 mb-0.5">
+                                <div class="flex h-6 shrink-0 items-center">
+                                    <div class="group grid size-4 grid-cols-1">
+                                        <input @bind="selectedParts[partNumber]" id="@($"part-{partNumber}")" type="checkbox" class="col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 bg-white checked:border-indigo-600 checked:bg-indigo-600 indeterminate:border-indigo-600 indeterminate:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 forced-colors:appearance-auto" />
+                                        <svg class="pointer-events-none col-start-1 row-start-1 size-3.5 self-center justify-self-center stroke-white" viewBox="0 0 14 14" fill="none">
+                                            <path class="opacity-0 group-has-checked:opacity-100" d="M3 8L6 11L11 3.5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                            <path class="opacity-0 group-has-indeterminate:opacity-100" d="M3 7H11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                    </div>
+                                </div>
+                                <label for="@($"part-{partNumber}")" class="text-sm font-medium">
+                                    @SectionUtils.GetPartName(partNumber, Parts)
+                                </label>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="mt-2 flex justify-center">
+                        <button class="premium-feature" @onclick="GenerateQuiz" disabled="@isGeneratingQuiz">
+                            @if (isGeneratingQuiz)
+                            {
+                                <span>Creating Recap</span>
+                            }
+                            else
+                            {
+                                <span>Create Recap</span>
+                            }
+                        </button>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+    
+    @if (quizGenerationFailed)
+    {
+        <div class="overflow-hidden rounded-lg bg-red-50 shadow-sm mt-4">
+            <div class="px-4 py-5 sm:p-6">
+                <div class="flex items-center">
+                    <h3 class="text-sm font-medium text-red-800">Quiz generation failed</h3>
+                </div>
+                <div class="mt-2 text-sm text-red-700">
+                    <p>@errorMessage</p>
+                </div>
+                <div class="mt-4">
+                    <button type="button" class="premium-feature" @onclick="RetryQuizGeneration">
+                        Try again
+                    </button>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (quiz != null)
+    {
+        <div class="overflow-hidden rounded-lg bg-white shadow-sm mt-4">
+            <div class="px-4 py-5 sm:p-6">
+                <h3 class="text-lg font-medium mb-4">Quiz</h3>
+                <div class="quiz-content">
+                    @foreach (var question in quiz.Content.Questions)
+                    {
+                        <div class="quiz-question mb-6">
+                            <h4 class="font-medium text-base mb-2">@question.Text</h4>
+                            <div class="quiz-options space-y-2">
+                                @foreach (var answer in shuffledQuestionAnswers[quiz.Content.Questions.IndexOf(question)])
+                                {
+                                    <label class="group flex cursor-pointer border border-gray-200 p-4 first:rounded-tl-md first:rounded-tr-md last:rounded-br-md last:rounded-bl-md focus:outline-hidden has-checked:relative has-checked:border-teal-200 has-checked:bg-teal-50 @(answer == question.CorrectAnswer ? "correct-answer" : "")">
+                                        <input type="radio" name="question-@(quiz.Content.Questions.IndexOf(question))" 
+                                               id="answer-@(quiz.Content.Questions.IndexOf(question))-@(shuffledQuestionAnswers[quiz.Content.Questions.IndexOf(question)].IndexOf(answer))" 
+                                               class="relative mt-0.5 size-4 shrink-0 appearance-none rounded-full border border-gray-300 bg-white before:absolute before:inset-1 before:rounded-full before:bg-white not-checked:before:hidden checked:border-teal-600 checked:bg-teal-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:before:bg-gray-400 forced-colors:appearance-auto forced-colors:before:hidden" />
+                                        <span class="ml-3 block text-sm font-medium text-gray-900 group-has-checked:text-teal-900">@answer</span>
+                                    </label>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public Document Document { get; set; }
+
+    [Parameter]
+    public Dictionary<int, DocumentPart> Parts { get; set; }
+
+    [Parameter]
+    public EventCallback OnUpdate { get; set; }
+
+    private Dictionary<int, bool> selectedParts = new Dictionary<int, bool>();
+    private string highlightsContent = string.Empty;
+    private Quiz quiz = null;
+    private string rawHighlightsText = string.Empty;
+    private bool isGeneratingQuiz = false;
+    private bool quizGenerationFailed = false;
+    private string errorMessage = string.Empty;
+    private List<List<string>> shuffledQuestionAnswers = new List<List<string>>();
+    
+    // Use the shared utility for consistent valid section calculation
+    private List<int> VisiblePartNumbers => SectionUtils.GetValidSections(Document, Parts);
+
+    protected override void OnInitialized()
+    {
+        // Initialize selectedParts dictionary with read status
+        foreach (var partNumber in VisiblePartNumbers)
+        {
+            selectedParts[partNumber] = Document.HasRead(partNumber);
+        }
+    }
+
+    private async Task GenerateRecap()
+    {
+        // Get the selected part numbers
+        var selectedPartNumbers = selectedParts
+            .Where(kvp => kvp.Value)
+            .Select(kvp => kvp.Key)
+            .OrderBy(partNumber => partNumber)
+            .ToList();
+            
+        if (selectedPartNumbers.Count == 0)
+        {
+            // No parts selected, show a message or return
+            return;
+        }
+        
+        // Reset the quiz and error state when regenerating highlights
+        quiz = null;
+        quizGenerationFailed = false;
+        errorMessage = string.Empty;
+        shuffledQuestionAnswers.Clear();
+        
+        // Use Document.FullPath to get the correct document path
+        var docPath = Document.FullPath;
+        
+        // Create a list of file contents and their highlights for the selected parts
+        var documentHighlights = new StringBuilder();
+        var plainTextHighlights = new StringBuilder();
+        
+        foreach (var partNumber in selectedPartNumbers)
+        {
+            // Each part corresponds to a text file named with its part number
+            var filePath = Path.Combine(docPath, $"{partNumber}.txt");
+            
+            // Only process the file if it exists
+            if (File.Exists(filePath))
+            {
+                var fileContent = await File.ReadAllTextAsync(filePath);
+                
+                // Extract key highlights from this part
+                var highlights = TextSummarizer.ExtractKeyHighlights(
+                    fileContent, 
+                    maxHighlights: 5,  // Limit to 5 key sentences per part
+                    maxLength: 1000    // Limit to 1000 characters per part
+                );
+                
+                foreach (var highlight in highlights)
+                {
+                    plainTextHighlights.AppendLine($"- {highlight}");
+                }
+            }
+        }
+        
+        rawHighlightsText = plainTextHighlights.ToString();
+    }
+    
+    private async Task RetryQuizGeneration()
+    {
+        quizGenerationFailed = false;
+        errorMessage = string.Empty;
+        await GenerateQuiz();
+    }
+    
+    private async Task GenerateQuiz()
+    {
+        // First generate the recap if we don't have highlights content yet
+        if (string.IsNullOrWhiteSpace(rawHighlightsText))
+        {
+            await GenerateRecap();
+        }
+            
+        if (string.IsNullOrWhiteSpace(rawHighlightsText))
+            return;
+            
+        isGeneratingQuiz = true;
+        quizGenerationFailed = false;
+        errorMessage = string.Empty;
+        StateHasChanged();
+        
+        try
+        {
+            // Use the dedicated GenerateQuiz method in AiConnection
+            quiz = await AiConnection.GenerateQuiz(Document, rawHighlightsText);
+            
+            // Reset shuffled answers list
+            shuffledQuestionAnswers.Clear();
+            
+            // Shuffle answers for each question once after quiz generation
+            if (quiz != null && quiz.Content.Questions.Any())
+            {
+                var random = new Random();
+                foreach (var question in quiz.Content.Questions)
+                {
+                    // Combine correct and incorrect answers and shuffle them
+                    var allAnswers = new List<string>(question.IncorrectAnswers);
+                    allAnswers.Add(question.CorrectAnswer);
+                    
+                    // Apply Fisher-Yates shuffle algorithm
+                    ShuffleList(allAnswers, random);
+                    
+                    // Store the shuffled answers
+                    shuffledQuestionAnswers.Add(allAnswers);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Set error state
+            quiz = null;
+            quizGenerationFailed = true;
+            errorMessage = $"Error: {ex.Message}";
+            shuffledQuestionAnswers.Clear();
+        }
+        finally
+        {
+            isGeneratingQuiz = false;
+            StateHasChanged();
+        }
+    }
+
+    // Fisher-Yates shuffle algorithm
+    private void ShuffleList<T>(List<T> list, Random random)
+    {
+        int n = list.Count;
+        for (int i = n - 1; i > 0; i--)
+        {
+            int j = random.Next(0, i + 1);
+            // Swap elements
+            T temp = list[i];
+            list[i] = list[j];
+            list[j] = temp;
+        }
+    }
+} 

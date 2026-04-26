@@ -1,0 +1,100 @@
+@using Aixaminator.Data
+@using Aixaminator.Features
+@using Aixaminator.Services
+@using Aixaminator.Utils
+@using Microsoft.Data.Sqlite
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.Extensions.VectorData
+@using Microsoft.SemanticKernel.Connectors.Sqlite
+@using Shared.AI.Data
+@using System.Text
+@using System.Text.RegularExpressions
+
+@inject AppDbContext DbContext
+
+<h3>My Documents</h3>
+
+@if (allDocuments is null)
+{
+    <p>Loading documents...</p>
+}
+else
+{
+    <div class=@styles["container"]>
+        <div class=@styles["tableWrapper"]>
+            <div class=@styles["tableContainer"]>
+                <div class=@styles["tableScroll"]>
+                    <table class=@styles["table"]>
+                        <thead>
+                            <tr>
+                                <th scope="col" class=@styles["thDocument"]>Document</th>
+                                <th scope="col" class=@styles["thAction"]>
+                                    <span class="sr-only">Action</span>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class=@styles["tbody"]>
+                            @foreach (var document in allDocuments)
+                            {
+                                <tr class=@styles["tr"]>
+                                    <td class=@styles["tdDocument"]>
+                                        <NavLink href=@($"/view/{document.Id}") class=@styles["documentLink"]>@document.Name</NavLink>
+                                    </td>
+                                    <td class=@styles["tdAction"]>
+                                        <button type="button" class=@styles["deleteButton"] @onclick="() => DeleteDocument(document.Id)">
+                                            Delete
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Document> allDocuments;
+    
+    private Dictionary<string, string> styles = new()
+    {
+        { "container", "px-4 sm:px-6 lg:px-8" },
+        { "tableWrapper", "mt-2 flow-root" },
+        { "tableContainer", "-mx-4 -my-2 overflow-x-auto sm:-mx-6 lg:-mx-8" },
+        { "tableScroll", "inline-block min-w-full py-2 align-middle sm:px-6 lg:px-8" },
+        { "table", "min-w-full divide-y divide-gray-300" },
+        { "thDocument", "py-3.5 pr-3 pl-4 text-left text-sm font-semibold text-gray-900 sm:pl-0" },
+        { "thAction", "relative w-20 py-3.5 pr-4 pl-3 sm:pr-0" },
+        { "tbody", "divide-y divide-gray-200 overflow-y-auto" },
+        { "tr", "hover:bg-teal-50 odd:bg-gray-50" },
+        { "tdDocument", "text-sm font-medium text-gray-900 w-full" },
+        { "tdAction", "relative w-20 text-right text-sm font-medium sm:pr-0 whitespace-nowrap" },
+        { "documentLink", "block text-gray-900 py-4 pr-3 pl-4 w-full" },
+        { "deleteButton", "negative" }
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        allDocuments = await Documents.GetAllAsync(DbContext);
+    }
+
+    private async Task DeleteDocument(Guid id)
+    {
+        var document = await DbContext.Documents.FindAsync(id);
+        if (document != null)
+        {
+            DbContext.Documents.Remove(document);
+            await DbContext.SaveChangesAsync();
+            try
+            {
+                Directory.Delete(document.FullPath, true);
+            }
+            catch (Exception ex)
+            {
+            }
+            allDocuments = await Documents.GetAllAsync(DbContext);
+        }
+    }
+}

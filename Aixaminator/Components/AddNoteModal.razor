@@ -1,0 +1,148 @@
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.Extensions.Logging
+
+@inject ILogger<AddNoteModal> Log
+
+@if (open && model is not null)
+{
+    <div class="modal-wrapper" @onclick="() => CloseModal(false)">
+        <div class="modal-content flex flex-col" @onclick:stopPropagation="true">
+            <div class="flex mb-2">
+                <h3 class="flex-1">Add a @(IsQuestion ? "question" : "note")</h3>
+                <button class="secondary" type="button" @onclick="() => CloseModal(false)">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+
+            <EditForm Model="@model" OnValidSubmit="Submit" class="flex flex-col flex-1 gap-y-2" FormName="NewNote1">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+                @if (!string.IsNullOrWhiteSpace(ExtraContext))
+                {
+                    <div>
+                        <label for="note-text" class="block text-sm/6 font-medium text-gray-900">Reference text</label>
+                        <p class="text-sm">@ExtraContext</p>
+                    </div>
+                }
+                <div class="flex-1 flex flex-col">
+                    <label for="note-text" class="block text-sm/6 font-medium text-gray-900">@(IsQuestion ? "Question" : "Content")</label>
+                    <div class="mt-2 flex-1">
+                        <InputTextArea @bind-Value="model.Text" id="note-text" class="block h-full w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-teal-600 sm:text-sm/6" />
+                    </div>
+                </div>
+                @if (IsQuestion)
+                {
+                    <div>
+                        <label for="note-answer" class="block text-sm/6 font-medium text-gray-900">Answer</label>
+                        <div class="mt-2">
+                            <InputText @bind-Value="model.Answer" id="note-answer" class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-teal-600 sm:text-sm/6" />
+                        </div>
+                    </div>
+                }
+                <button class="primary" type="submit">Add</button>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public bool Open { get; set; }
+    private bool open;
+    [Parameter]
+    public EventCallback<bool> OpenChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<(string, string?, string?)> OnSave { get; set; }
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    [Parameter]
+    public bool IsQuestion { get; set; }
+
+    [Parameter]
+    public string? ExtraContext { get; set; }
+
+    private INoteModel? model;
+
+    protected override void OnParametersSet()
+    {
+        open = Open;
+        if (open && model is null)
+        {
+            SetModel();
+        }
+    }
+
+    public void SetModel()
+    {
+        if (IsQuestion)
+        {
+            model ??= new AddQuestionModel();
+        }
+        else
+        {
+            model ??= new AddNoteModel();
+        }
+    }
+
+    public async Task DoSubmit()
+    {
+        await Submit();
+    }
+
+    public async Task Submit()
+    {
+        if (OnSave.HasDelegate)
+        {
+            var answer = string.IsNullOrWhiteSpace(model.Answer) ? null : model.Answer;
+            await OnSave.InvokeAsync((model.Text, ExtraContext, answer));
+        }
+        // true because context already gets reset by the handler
+        await CloseModal(true);
+    }
+
+    public async Task CloseModal(bool keepContext)
+    {
+        model = null;
+        open = false;
+        await OpenChanged.InvokeAsync(open);
+        if (!keepContext)
+        {
+            // this is used to reset the context in the parent
+            await OnClose.InvokeAsync();
+        }
+    }
+
+    private interface INoteModel
+    {
+        string Text { get; set; }
+        string? Answer { get; set; }
+    }
+
+    private class AddNoteModel : INoteModel
+    {
+        [Required(ErrorMessage = "You must provide some text for your note.")]
+        public string Text { get; set; } = string.Empty;
+        private string? _answer;
+        public string? Answer
+        {
+            get => _answer;
+            set
+            {
+                // always null for notes
+                _answer = null;
+            }
+        }
+    }
+
+    private class AddQuestionModel : INoteModel
+    {
+        [Required(ErrorMessage = "You must provide some text for your question.")]
+        public string Text { get; set; } = string.Empty;
+        [Required(ErrorMessage = "You must provide an answer for your question.")]
+        public string? Answer { get; set; }
+    }
+}

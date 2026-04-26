@@ -1,0 +1,109 @@
+@using Aixaminator.Data
+@using Aixaminator.Data.Ai
+@using Aixaminator.Services
+
+@inject ISettingsService SettingsService
+
+<div class="container mx-auto pt-2">
+<div class=@styles["button-bar"]>
+    @if (addingProvider)
+    {
+        <button type="button" class="secondary" @onclick="CancelAddingProvider">Cancel</button>
+    }
+    else
+    {
+        <button type="button" class="primary" @onclick="StartAddingProvider">Add Provider</button>
+    }
+
+    @if (addingProvider)
+    {
+        <label for="providerName" class=@styles["form-group"]>
+            <span class=@styles["label"]>Provider Name</span>
+            <InputSelect id="providerName" @bind-Value="newProvider!.Name" class=@styles["dropdown"]>
+                <option value="">Select Provider</option>
+                @foreach (var provider in AiSettings.AvailableProviders)
+                {
+                    <option value="@provider">@AiSettings.ProviderNames[provider]</option>
+                }
+            </InputSelect>
+        </label>
+
+        <label for="providerApiKey" class=@styles["form-group"]>
+            <span class=@styles["label"]>API Key</span>
+            <InputText id="providerApiKey" @bind-Value="newProvider!.ApiKey" class=@styles["text-box"] />
+        </label>
+
+        <button type="button" class="primary" @onclick="AddProvider">Save</button>
+    }
+</div>
+</div>
+
+<ProvidersList OnUpdate="OnUpdate" />
+
+<ActionsList OnUpdate="OnUpdate" />
+
+@code {
+    [CascadingParameter]
+    public EditContext editContext { get; set; }
+
+    [Parameter]
+    public EventCallback OnUpdate { get; set; }
+
+    private bool addingProvider = false;
+    private NewProvider newProvider = new();
+
+    private Dictionary<string, string> styles = new()
+    {
+        { "button-bar", "flex items-end gap-x-8 h-[3rem] mb-[-1rem]" },
+        { "form-group", "flex flex-col gap-y-0.5" },
+        { "label", "text-sm font-medium" },
+        { "dropdown", "block border border-gray-300 p-0.5 rounded-sm" },
+        { "text-box", "border border-gray-300 p-0.5 rounded-sm" },
+    };
+
+    public async Task AddProvider()
+    {
+        if (newProvider is null || !newProvider.IsValid)
+        {
+            CancelAddingProvider();
+            return;
+        }
+
+        var provider = new AiProvider
+        {
+            Name = newProvider.Name,
+            ApiKey = newProvider.ApiKey
+        };
+
+        var model = (ApplicationSettings)editContext.Model;
+        model.Ai.AddProvider(provider);
+        editContext.NotifyFieldChanged(
+            new FieldIdentifier(model, nameof(ApplicationSettings.Ai))
+        );
+
+        addingProvider = false;
+        newProvider = new();
+
+        await OnUpdate.InvokeAsync();
+    }
+
+    public void StartAddingProvider()
+    {
+        addingProvider = true;
+    }
+
+    public void CancelAddingProvider()
+    {
+        addingProvider = false;
+        newProvider = new();
+    }
+
+    private class NewProvider
+    {
+        public string Name { get; set; } = string.Empty;
+        public string ApiKey { get; set; } = string.Empty;
+
+        public bool IsValid => !string.IsNullOrWhiteSpace(Name) && !string.IsNullOrWhiteSpace(ApiKey);
+    }
+
+}

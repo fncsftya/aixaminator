@@ -1,0 +1,119 @@
+@using Aixaminator.Data
+@using Aixaminator.Features
+@using Microsoft.EntityFrameworkCore
+
+@inject AppDbContext DbContext
+
+<div class="space-y-6">
+    <div class="overflow-hidden rounded-lg bg-white shadow-sm">
+        <div class="px-4 py-5 sm:p-6">
+            <h3 class="text-lg font-medium">Document Settings</h3>
+            <div class="mt-4">
+                <label for="documentName" class="block text-sm font-medium">Document Title</label>
+                <div class="mt-1 flex rounded-md shadow-sm">
+                    <input type="text" name="documentName" id="documentName" 
+                        class="block w-full rounded-md border border-gray-300 px-3 py-2" 
+                        placeholder="Document Title"
+                        @bind="documentName"
+                        @bind:after="SaveDocumentName" />
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <label for="documentDescription" class="block text-sm font-medium">Document Description</label>
+                <div class="mt-1">
+                    <textarea id="documentDescription" 
+                        class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-teal-600 sm:text-sm/6 border border-gray-300"
+                        placeholder="Document Description"
+                        @bind="description"
+                        @bind:after="SaveDescription"></textarea>
+                </div>
+                <span class="text-gray-500 text-sm mt-1">This will help the AI give more accurate quizzes.</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="overflow-hidden rounded-lg bg-white shadow-sm">
+        <div class="px-4 py-5 sm:p-6">
+            <h3 class="text-lg font-medium">Hidden Parts</h3>
+            <div class="mt-4">
+                @if (HiddenParts.Count == 0)
+                {
+                    <p class="text-sm text-gray-500">No hidden parts found.</p>
+                }
+                else
+                {
+                    <ul class="space-y-2">
+                        @foreach (var part in HiddenParts)
+                        {
+                            <li class="flex items-center justify-between">
+                                <span>@PartName(part)</span>
+                                <button class="secondary" @onclick="() => UnhidePart(part)">Unhide</button>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Document Document { get; set; }
+
+    [Parameter]
+    public Dictionary<int, DocumentPart> Parts { get; set; }
+
+    [Parameter]
+    public EventCallback OnUpdate { get; set; }
+
+    private string documentName;
+    private string? description;
+    private List<DocumentPart> HiddenParts => Parts.Values.Where(p => p.Hidden).ToList();
+
+    protected override void OnInitialized()
+    {
+        documentName = Document.Name;
+        description = Document.Description;
+    }
+
+    private string PartName(DocumentPart part)
+    {
+        if (string.IsNullOrWhiteSpace(part.Name))
+        {
+            return $"Part {part.PartNumber + 1}";
+        }
+        return part.Name;
+    }
+
+    private async Task SaveDocumentName()
+    {
+        if (Document.Name != documentName)
+        {
+            Document.Name = documentName;
+            DbContext.Update(Document);
+            await DbContext.SaveChangesAsync();
+            await OnUpdate.InvokeAsync();
+        }
+    }
+
+    private async Task SaveDescription()
+    {
+        if (Document.Description != description)
+        {
+            Document.Description = description;
+            DbContext.Update(Document);
+            await DbContext.SaveChangesAsync();
+            await OnUpdate.InvokeAsync();
+        }
+    }
+
+    private async Task UnhidePart(DocumentPart part)
+    {
+        part.Hidden = false;
+        DbContext.Update(part);
+        await DbContext.SaveChangesAsync();
+        await OnUpdate.InvokeAsync();
+    }
+} 

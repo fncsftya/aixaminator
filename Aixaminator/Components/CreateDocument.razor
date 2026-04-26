@@ -1,0 +1,755 @@
+@using Aixaminator.Data
+@using System.Text
+@using Aixaminator.Data.Ai
+@using Aixaminator.Utils
+@using Aixaminator.Services
+@using Microsoft.Data.Sqlite
+@using Microsoft.Extensions.VectorData
+@using Microsoft.SemanticKernel.Connectors.Sqlite
+@using Shared.AI.Data
+@using System.Text.RegularExpressions
+@using Importers
+@using Microsoft.JSInterop
+
+@inject IAiConnection AiConnection
+@inject AppDbContext Context
+@inject ISettingsService SettingsService
+@inject IJSRuntime JSRuntime
+
+<div class="w-full md:w-1/2 mx-auto">
+    <h3>Add Document</h3>
+
+    @if (failureMessage.Length > 0)
+    {
+        <p class="text-danger">@failureMessage</p>
+    }
+    else if (status == PipelineStatus.NotStarted)
+    {
+        <div class="my-4">
+            <nav class="flex space-x-4" aria-label="Import Tabs">
+                <button type="button" 
+                @onclick="() => SetActiveTab(ImportTab.File)"
+                class="rounded-md px-3 py-2 text-sm font-medium @(activeTab == ImportTab.File ? "w-24 bg-teal-600 text-teal-50 hover:bg-teal-700 hover:text-teal-100" : "w-24 bg-gray-100 text-gray-500 hover:text-gray-700")"
+                aria-current="@(activeTab == ImportTab.File ? "page" : null)">
+                    Local File
+                </button>
+                <button type="button" 
+                @onclick="() => SetActiveTab(ImportTab.Url)"
+                class="rounded-md px-3 py-2 text-sm font-medium @(activeTab == ImportTab.Url ? "w-24 bg-teal-600 text-teal-50 hover:bg-teal-700 hover:text-teal-100" : "w-24 bg-gray-100 text-gray-500 hover:text-gray-700")"
+                aria-current="@(activeTab == ImportTab.Url ? "page" : null)">
+                    Web
+                </button>
+            </nav>
+        </div>
+        <div>
+            <EditForm Model="@importModel" OnValidSubmit="HandleValidSubmit">
+                <DataAnnotationsValidator />
+
+                @if (activeTab == ImportTab.File)
+                {
+                    <div>
+                        <label for="fileInput" class="block text-sm/6 font-medium text-gray-900">Choose a file</label>
+                        <div class="mt-2 flex w-full">
+                            <div class="-mr-px grid grow grid-cols-1 focus-within:relative">
+                                <InputFile OnChange="HandleFileSelected" id="fileInput" class="col-start-1 row-start-1 block w-full rounded-l-md bg-white py-1.5 pr-3 pl-10 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-teal-600 sm:pl-9 sm:text-sm/6" />
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="pointer-events-none col-start-1 row-start-1 ml-3 size-5 self-center text-gray-400 sm:size-4">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+                                </svg>
+                            </div>
+                            <button type="button" @onclick="TriggerFileInput" class="flex shrink-0 items-center gap-x-1.5 rounded-r-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 outline-1 -outline-offset-1 outline-gray-300 hover:bg-gray-50 focus:relative focus:outline-2 focus:-outline-offset-2 focus:outline-teal-600">
+                                Browse
+                            </button>
+                        </div>
+                        <ValidationMessage For="@(() => importModel.SelectedFile)" class="mt-2 text-sm text-red-600" />
+                    </div>
+                }
+                else if (activeTab == ImportTab.Url)
+                {
+                    <div>
+                        <label for="url-input" class="block text-sm/6 font-medium text-gray-900">Enter URL</label>
+                        <div class="mt-2 w-full">
+                            <InputText @bind-Value="importModel.Url" id="url-input" class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-teal-600 sm:text-sm/6" placeholder="https://en.wikipedia.org/wiki/Example" />
+                        </div>
+                        <ValidationMessage For="@(() => importModel.Url)" class="mt-2 text-sm text-red-600" />
+                        @if (activeTab == ImportTab.Url && !string.IsNullOrEmpty(importModel.Url) && !IsValidUrl(importModel.Url))
+                        {
+                            <div class="mt-1 text-sm text-red-600">Please enter a valid URL</div>
+                        }
+                    </div>
+                }
+
+                <div class="mt-3 mb-3 flex items-center space-x-3">
+                    <div class="flex h-6 shrink-0 items-center">
+                        <div class="group grid size-4 grid-cols-1">
+                            <InputCheckbox @bind-Value="enableSplitting" disabled="@isSplittingDisabled" id="splitDocument" title="Split document into parts?" type="checkbox" class="col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 bg-white checked:border-indigo-600 checked:bg-indigo-600 indeterminate:border-indigo-600 indeterminate:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100 forced-colors:appearance-auto" />
+                            <svg class="pointer-events-none col-start-1 row-start-1 size-3.5 self-center justify-self-center stroke-white group-has-disabled:stroke-gray-950/25" viewBox="0 0 14 14" fill="none">
+                                <path class="opacity-0 group-has-checked:opacity-100" d="M3 8L6 11L11 3.5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                <path class="opacity-0 group-has-indeterminate:opacity-100" d="M3 7H11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </div>
+                    </div>
+                    <label for="splitDocument" class="block text-sm font-medium">Split document into parts?</label>
+                </div>
+
+                @if (enableSplitting)
+                {
+                    <div class="mt-3 flex items-center space-x-3">
+                        <div class="flex h-6 shrink-0 items-center">
+                            <div class="group grid size-4 grid-cols-1">
+                                <InputCheckbox @bind-Value="enableClassification" disabled="@(isSplittingDisabled || !enableSplitting)" id="classifyDocument" title="Auto classify document?" type="checkbox" class="col-start-1 row-start-1 appearance-none rounded-sm border border-gray-300 bg-white checked:border-indigo-600 checked:bg-indigo-600 indeterminate:border-indigo-600 indeterminate:bg-indigo-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:border-gray-300 disabled:bg-gray-100 disabled:checked:bg-gray-100 forced-colors:appearance-auto" />
+                                <svg class="pointer-events-none col-start-1 row-start-1 size-3.5 self-center justify-self-center stroke-white group-has-disabled:stroke-gray-950/25" viewBox="0 0 14 14" fill="none">
+                                    <path class="opacity-0 group-has-checked:opacity-100" d="M3 8L6 11L11 3.5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                    <path class="opacity-0 group-has-indeterminate:opacity-100" d="M3 7H11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                            </div>
+                        </div>
+                        <label for="classifyDocument" class="block text-sm font-medium">Auto classify document?</label>
+                    </div>
+                    <span class="block text-gray-500 text-sm mt-0.5 mb-3">Might be a bit slow.</span>
+                }
+
+                @if (!enableSplitting || (enableSplitting && !enableClassification))
+                {
+                    <div class="mt-3 mb-3 flex flex-col">
+                        <label for="document-description" class="block text-sm/6 font-medium text-gray-900">Document Summary</label>
+                        <div class="mt-2">
+                            <InputTextArea @bind-Value="documentDescription" id="document-description" class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-teal-600 sm:text-sm/6" placeholder="Provide a summary of this document" />
+                        </div>
+                        <span class="text-gray-500 text-sm mt-2">This will help the AI give more accurate quizzes.</span>
+                    </div>
+                }
+
+                <button type="submit" class="primary">Create</button>
+            </EditForm>
+        </div>
+    }
+    else if (status == PipelineStatus.GettingEmbeddings)
+    {
+        <p>Analyzing document...</p>
+    }
+    else if (status == PipelineStatus.DownloadingEmbeddings)
+    {
+        <p>Downloading details...</p>
+    }
+    else if (status == PipelineStatus.ProcessingEmbeddings)
+    {
+        <p>Processing document...</p>
+    }
+    else if (status == PipelineStatus.Completed && document is not null)
+    {
+        <p>Done! <NavLink href=@($"/view/{document.Id}")>View your document</NavLink>.</p>
+    }
+    else
+    {
+        <p>Something went wrong.</p>
+    }
+</div>
+
+@code {
+    private ImportModel importModel = new ImportModel();
+    private string failureMessage = string.Empty;
+    private PipelineStatus status = PipelineStatus.NotStarted;
+    private bool enableSplitting;
+    private bool enableClassification;
+    private bool isSplittingDisabled = false;
+    private bool isClassificationDisabled = false;
+    private ImportTab activeTab = ImportTab.File;
+    private string documentDescription = string.Empty;
+
+    private Document? document = null;
+
+    protected override void OnInitialized()
+    {
+        // Load the splitting preference from settings
+        enableSplitting = SettingsService.Settings.Ai.EnableDocumentSplitting;
+        enableClassification = SettingsService.Settings.Ai.EnableDocumentClassification;
+
+        // Check if a provider is configured for DocumentSplitting
+        isSplittingDisabled = !SettingsService.Settings.Ai.ActionProviderMap.ContainsKey(AiAction.DocumentSplitting) ||
+                             string.IsNullOrEmpty(SettingsService.Settings.Ai.ActionProviderMap[AiAction.DocumentSplitting]);
+
+        // Check if a provider is configured for DocumentClassification
+        isClassificationDisabled = isSplittingDisabled || (
+            !SettingsService.Settings.Ai.ActionProviderMap.ContainsKey(AiAction.DocumentClassification) ||
+            string.IsNullOrEmpty(SettingsService.Settings.Ai.ActionProviderMap[AiAction.DocumentClassification]));
+
+        // If splitting is disabled by configuration, ensure it's unchecked
+        if (isSplittingDisabled)
+        {
+            enableSplitting = false;
+            enableClassification = false;
+        }
+
+        if (isClassificationDisabled || !enableSplitting)
+        {
+            enableClassification = false;
+        }
+    }
+
+    private void SetActiveTab(ImportTab tab)
+    {
+        activeTab = tab;
+        failureMessage = string.Empty;
+    }
+
+    private void HandleTabChange(ChangeEventArgs e)
+    {
+        if (Enum.TryParse<ImportTab>(e.Value?.ToString(), out var tab))
+        {
+            SetActiveTab(tab);
+        }
+    }
+
+    private bool IsValidUrl(string url)
+    {
+        return Uri.TryCreate(url, UriKind.Absolute, out var uriResult) 
+            && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps);
+    }
+
+    private bool IsWikipediaUrl(string url)
+    {
+        return IsValidUrl(url) && url.Contains("wikipedia.org");
+    }
+
+    private async Task HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        importModel.SelectedFile = file;
+    }
+
+    private Regex wsRegex = new(@"\s+");
+
+    private async Task HandleValidSubmit()
+    {
+        failureMessage = string.Empty;
+
+        // Save the splitting preference to settings
+        if (!isSplittingDisabled)
+        {
+            SettingsService.Settings.Ai.EnableDocumentSplitting = enableSplitting;
+        }
+
+        if (!isClassificationDisabled)
+        {
+            SettingsService.Settings.Ai.EnableDocumentClassification = enableClassification;
+        }
+
+        if (activeTab == ImportTab.File && importModel.SelectedFile == null)
+        {
+            failureMessage = "No file selected";
+            return;
+        }
+
+        if (activeTab == ImportTab.Url && string.IsNullOrEmpty(importModel.Url))
+        {
+            failureMessage = "No URL provided";
+            return;
+        }
+
+        if (activeTab == ImportTab.Url && !IsValidUrl(importModel.Url))
+        {
+            failureMessage = "Invalid URL format";
+            return;
+        }
+
+        string documentText;
+        string name;
+
+        status = PipelineStatus.GettingEmbeddings;
+        StateHasChanged();
+
+        try
+        {
+            if (activeTab == ImportTab.File)
+            {
+                // Handle file upload
+                using var memoryStream = new MemoryStream();
+                await importModel.SelectedFile.OpenReadStream(maxAllowedSize: 300 * 1024 * 1024).CopyToAsync(memoryStream);
+                memoryStream.Position = 0;
+
+                var contentType = importModel.SelectedFile.ContentType.ToLower();
+                var fileName = importModel.SelectedFile.Name.ToLower();
+
+                // Check file type and extract text accordingly
+                if (contentType == "application/pdf")
+                {
+                    // Handle PDF files
+                    var pdfReader = new PDFReader();
+                    memoryStream.Position = 0;
+                    documentText = pdfReader.ExtractText(memoryStream);
+                }
+                else if (contentType == "application/epub+zip" || contentType == "application/epub" || fileName.EndsWith(".epub"))
+                {
+                    // Handle EPUB files
+                    var epubReader = new EpubReader();
+                    memoryStream.Position = 0;
+
+                    // Check if it's a valid EPUB file first
+                    try
+                    {
+                        documentText = epubReader.ExtractText(memoryStream);
+                    }
+                    catch (Exception ex)
+                    {
+                        failureMessage = "The chosen file is not a valid EPUB file.";
+                        status = PipelineStatus.NotStarted;
+                        StateHasChanged();
+                        return;
+                    }
+                }
+                else
+                {
+                    // For non-PDF/non-EPUB files, read as text directly
+                    memoryStream.Position = 0;
+
+                    // Check if the file contains binary content
+                    if (await FileUtils.IsBinaryContent(memoryStream))
+                    {
+                        failureMessage = "The chosen file appears to contain binary content and cannot be processed as text.";
+                        status = PipelineStatus.NotStarted;
+                        StateHasChanged();
+                        return;
+                    }
+
+                    // Reset position and continue with text reading
+                    memoryStream.Position = 0;
+                    using var streamReader = new StreamReader(memoryStream);
+                    documentText = await streamReader.ReadToEndAsync();
+                }
+
+                name = Path.GetFileNameWithoutExtension(importModel.SelectedFile.Name);
+            }
+            else // URL tab
+            {
+                // Handle URL import
+                if (IsWikipediaUrl(importModel.Url))
+                {
+                    // Use WikiReader for Wikipedia URLs
+                    var wikiReader = new WikiReader();
+                    documentText = await wikiReader.ExtractTextFromUrlAsync(importModel.Url);
+
+                    // Extract page title from URL for the document name
+                    var pageTitle = importModel.Url.Split('/').LastOrDefault();
+                    name = !string.IsNullOrEmpty(pageTitle) ? Uri.UnescapeDataString(pageTitle) : "Wikipedia Page";
+                }
+                else
+                {
+                    // For other URLs, we could implement other readers in the future
+                    failureMessage = "Only Wikipedia URLs are currently supported.";
+                    status = PipelineStatus.NotStarted;
+                    StateHasChanged();
+                    return;
+                }
+            }
+
+            // figure out the filename of the db
+            string dirPath;
+            int n = 0;
+            do
+            {
+                dirPath = wsRegex.Replace(
+                        string.Join("", name.Where(c => char.IsAsciiLetterOrDigit(c) || char.IsWhiteSpace(c))), "_"
+                    )
+                    .Trim();
+                if (dirPath.Length > 50)
+                {
+                    dirPath = dirPath.Substring(0, 50);
+                }
+                if (n > 0)
+                {
+                    dirPath += $"_{n}";
+                }
+                n++;
+            } while (Directory.Exists(Constants.GetInternalFilepath("Documents", dirPath)));
+
+            var filePath = Constants.GetInternalFilepath("Documents", dirPath, "store.db");
+
+            Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+
+            if (enableSplitting)
+            {
+                status = PipelineStatus.DownloadingEmbeddings;
+                StateHasChanged();
+
+                await AiConnection.EmbedDocument(filePath, documentText);
+
+                status = PipelineStatus.ProcessingEmbeddings;
+                StateHasChanged();
+
+                await GenerateSections(filePath);
+            }
+            else
+            {
+                status = PipelineStatus.ProcessingEmbeddings;
+                StateHasChanged();
+
+                // If splitting is disabled, just write the entire document to a single file
+                var docPath = Path.GetDirectoryName(filePath);
+                await File.WriteAllTextAsync(Path.Combine(docPath, "0.txt"), documentText);
+            }
+
+            document = await Features.Documents.New(
+                Context, 
+                name, 
+                dirPath,
+                !string.IsNullOrWhiteSpace(documentDescription) ? documentDescription : null
+            );
+
+            if (enableSplitting)
+            {
+                // After creating document, we need to create DocumentPart entries for each section
+                var docPath = Path.GetDirectoryName(filePath);
+                var files = Directory.GetFiles(docPath, "*.txt").OrderBy(f => int.Parse(Path.GetFileNameWithoutExtension(f)));
+                
+                foreach (var file in files)
+                {
+                    int partNumber = int.Parse(Path.GetFileNameWithoutExtension(file));
+                    // Create document part for this section without saving to the database yet
+                    await Features.DocumentParts.GetAsync(Context, document.Id, partNumber, shouldSave: false);
+                }
+                
+                await Context.SaveChangesAsync();
+            }
+            else
+            {
+                // If splitting is disabled, create a single DocumentPart for the entire document
+                await Features.DocumentParts.GetAsync(Context, document.Id, 0);
+            }
+
+            status = PipelineStatus.Completed;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            failureMessage = $"Error processing content: {ex.Message}";
+            status = PipelineStatus.NotStarted;
+            StateHasChanged();
+        }
+    }
+
+    public async Task GenerateSections(string filePath)
+    {
+        // Skip the section generation if splitting is disabled
+        if (!enableSplitting)
+        {
+            return;
+        }
+
+        using var connection = new SqliteConnection($@"Data Source={filePath}");
+        await connection.OpenAsync();
+        connection.EnableExtensions(true);
+        connection.LoadExtension("vec0");
+        var vectorStore = new SqliteVectorStore(connection);
+
+        // First, try to determine what type of embedding collection we have
+        bool isGoogleCollection = false;
+
+        try 
+        {
+            // Try to get a GoogleDocumentChunk first
+            var googleCollection = vectorStore.GetCollection<ulong, GoogleDocumentChunk>("sk_document_chunks");
+            var testChunk = await googleCollection.GetAsync(0, new GetRecordOptions { IncludeVectors = true });
+            if (testChunk != null)
+            {
+                isGoogleCollection = true;
+            }
+        }
+        catch
+        {
+            // If that fails, it's probably an OpenAI collection
+            isGoogleCollection = false;
+        }
+
+        List<string> themes = new();
+        if (isGoogleCollection)
+        {
+            await GenerateSectionsGeneric<GoogleDocumentChunk>(connection, vectorStore, filePath);
+            if (enableClassification)
+            {
+                themes = await ExtractKeyThemes<GoogleDocumentChunk>(vectorStore);
+            }
+        }
+        else
+        {
+            await GenerateSectionsGeneric<OpenAIDocumentChunk>(connection, vectorStore, filePath);
+            if (enableClassification)
+            {
+                themes = await ExtractKeyThemes<OpenAIDocumentChunk>(vectorStore);
+            }
+        }
+
+        await connection.CloseAsync();
+
+        if (enableClassification)
+        {
+            try
+            {
+                // TODO should probably try and parse this response to remove repetition
+                documentDescription = await AiConnection.ClassifyDocument(themes);
+            }
+            catch (Exception _)
+            {
+                documentDescription = string.Empty;
+            }
+        }
+    }
+    
+    private async Task GenerateSectionsGeneric<T>(SqliteConnection connection, SqliteVectorStore vectorStore, string filePath) 
+        where T : DocumentChunkBase
+    {
+        var collection = vectorStore.GetCollection<ulong, T>("sk_document_chunks");
+        ulong i = 1;
+        GetRecordOptions options = new() { IncludeVectors = true };
+
+        T? leftChunk = await collection.GetAsync(i - 1, options);
+        T? rightChunk = await collection.GetAsync(i, options);
+
+        var part = 0;
+        var currentSection = new StringBuilder();
+        var currentSize = 1;
+        currentSection.Append(leftChunk.Content);
+
+        var threshold = 0.49;
+        var minSize = 4;
+
+        var docPath = Path.GetDirectoryName(filePath);
+
+        do
+        {
+            var similarity = Shared.AI.Utils.GetCosineSimilarity(
+                (ReadOnlyMemory<float>)leftChunk.Embedding,
+                (ReadOnlyMemory<float>)rightChunk.Embedding
+            );
+
+            if (similarity > threshold || currentSize < minSize)
+            {
+                currentSection.AppendLine(rightChunk.Content);
+                currentSize += 1;
+            }
+            else
+            {
+                await File.WriteAllTextAsync(Path.Combine(docPath, $"{part}.txt"), currentSection.ToString());
+                part++;
+                currentSection.Clear();
+                currentSection.Append(rightChunk.Content);
+                currentSize = 1;
+            }
+
+            i++;
+            leftChunk = rightChunk;
+            rightChunk = await collection.GetAsync(i, options);
+        } while (rightChunk is not null);
+
+        // Don't forget to write the last section
+        if (currentSection.Length > 0)
+        {
+            await File.WriteAllTextAsync(Path.Combine(docPath, $"{part}.txt"), currentSection.ToString());
+        }
+    }
+
+    // Method to extract key themes from document embeddings using clustering
+    private async Task<List<string>> ExtractKeyThemes<T>(SqliteVectorStore vectorStore, int k = 5, int samplesPerCluster = 3, int maxTextLength = 150) 
+        where T : DocumentChunkBase
+    {
+        // Get the collection of document chunks
+        var collection = vectorStore.GetCollection<ulong, T>("sk_document_chunks");
+        
+        // Fetch all chunks with their embeddings
+        var chunks = new List<T>();
+        ulong index = 0;
+        GetRecordOptions options = new() { IncludeVectors = true };
+        
+        T? chunk;
+        do
+        {
+            chunk = await collection.GetAsync(index, options);
+            if (chunk != null)
+            {
+                chunks.Add(chunk);
+                index++;
+            }
+        } while (chunk != null);
+        
+        if (chunks.Count == 0)
+            return new List<string>();
+            
+        // Adjust k if there are fewer chunks than requested clusters
+        if (chunks.Count < k)
+            k = chunks.Count;
+        
+        // Extract embeddings as float arrays for clustering
+        var embeddings = chunks.Select(c => (float[])((ReadOnlyMemory<float>)c.Embedding).ToArray()).ToList();
+        
+        // Perform K-means clustering
+        var clusters = KMeansClustering(embeddings, k);
+        
+        // For each cluster, extract representative text
+        var themes = new List<string>();
+        for (int clusterId = 0; clusterId < k; clusterId++)
+        {
+            // Find all chunks in this cluster
+            var clusterChunks = chunks
+                .Where((_, i) => clusters[i] == clusterId)
+                .ToList();
+                
+            if (clusterChunks.Count == 0)
+                continue;
+                
+            // Sample random chunks from the cluster
+            var samplesToTake = Math.Min(samplesPerCluster, clusterChunks.Count);
+            var random = new Random();
+            var sampledChunks = clusterChunks
+                .OrderBy(_ => random.Next()) // Shuffle the chunks
+                .Take(samplesToTake)
+                .ToList();
+                
+            // Combine the text from sampled chunks, truncating if necessary
+            var themeText = new StringBuilder();
+            foreach (var sampledChunk in sampledChunks)
+            {
+                var chunkText = sampledChunk.Content.Trim();
+                // Avoid adding duplicate content
+                if (!themeText.ToString().Contains(chunkText))
+                {
+                    if (themeText.Length > 0)
+                        themeText.Append(" ~@@~ ");
+                        
+                    themeText.Append(chunkText);
+                }
+            }
+            
+            themes.Add(themeText.ToString());
+        }
+        
+        return themes;
+    }
+    
+    // Implements K-means clustering algorithm
+    private int[] KMeansClustering(List<float[]> data, int k, int maxIterations = 100)
+    {
+        int n = data.Count;
+        int dimensions = data[0].Length;
+        
+        // Randomly initialize k centroids
+        var random = new Random();
+        var centroids = new List<float[]>();
+        var usedIndices = new HashSet<int>();
+        
+        // Initialize centroids with actual data points
+        for (int i = 0; i < k; i++)
+        {
+            int index;
+            do
+            {
+                index = random.Next(n);
+            } while (usedIndices.Contains(index) && usedIndices.Count < n);
+            
+            usedIndices.Add(index);
+            centroids.Add((float[])data[index].Clone());
+        }
+        
+        // Initialize cluster assignments
+        var clusters = new int[n];
+        
+        // Run the K-means algorithm
+        bool changed = true;
+        int iteration = 0;
+        
+        while (changed && iteration < maxIterations)
+        {
+            changed = false;
+            iteration++;
+            
+            // Assign each point to the nearest centroid
+            for (int i = 0; i < n; i++)
+            {
+                int bestCluster = 0;
+                float bestDistance = float.MaxValue;
+                
+                for (int j = 0; j < k; j++)
+                {
+                    // Use cosine distance (1 - cosine similarity) instead of Euclidean distance
+                    float similarity = (float)Shared.AI.Utils.GetCosineSimilarity(
+                        new ReadOnlyMemory<float>(data[i]), 
+                        new ReadOnlyMemory<float>(centroids[j])
+                    );
+                    float distance = 1 - similarity; // Convert similarity to distance
+                    
+                    if (distance < bestDistance)
+                    {
+                        bestDistance = distance;
+                        bestCluster = j;
+                    }
+                }
+                
+                if (clusters[i] != bestCluster)
+                {
+                    clusters[i] = bestCluster;
+                    changed = true;
+                }
+            }
+            
+            // Recompute centroids based on new cluster assignments
+            var newCentroids = new float[k][];
+            var counts = new int[k];
+            
+            for (int i = 0; i < k; i++)
+            {
+                newCentroids[i] = new float[dimensions];
+            }
+            
+            for (int i = 0; i < n; i++)
+            {
+                int cluster = clusters[i];
+                counts[cluster]++;
+                
+                for (int j = 0; j < dimensions; j++)
+                {
+                    newCentroids[cluster][j] += data[i][j];
+                }
+            }
+            
+            // Calculate the average for each centroid
+            for (int i = 0; i < k; i++)
+            {
+                if (counts[i] > 0)
+                {
+                    for (int j = 0; j < dimensions; j++)
+                    {
+                        newCentroids[i][j] /= counts[i];
+                    }
+                    centroids[i] = newCentroids[i];
+                }
+            }
+        }
+        
+        return clusters;
+    }
+
+    private async Task TriggerFileInput()
+    {
+        // Use JS interop to trigger the file input's click event
+        await JSRuntime.InvokeVoidAsync("eval", "document.getElementById('fileInput').click()");
+    }
+
+    private enum ImportTab
+    {
+        File,
+        Url
+    }
+
+    private class ImportModel
+    {
+        public IBrowserFile? SelectedFile { get; set; }
+        public string Url { get; set; } = string.Empty;
+    }
+
+    private enum PipelineStatus
+    {
+        NotStarted,
+        GettingEmbeddings,
+        DownloadingEmbeddings,
+        ProcessingEmbeddings,
+        Completed
+    }
+}

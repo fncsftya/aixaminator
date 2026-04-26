@@ -1,0 +1,351 @@
+@using Aixaminator.Data
+@using Aixaminator.Features
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.EntityFrameworkCore.ChangeTracking
+@using System.Text
+
+@inject AppDbContext Context
+
+<div class="h-screen grid grid-cols-3 divide-x divide-gray-300">
+    <div class="h-full overflow-y-auto p-4 flex flex-col gap-y-2">
+        <header class="space-y-2">
+            <section class="flex justify-between items-center gap-x-4">
+                <h3 class="overflow-x-auto whitespace-nowrap">@Document?.Name</h3>
+                <span class="text-2xl">@(Progress())%</span>
+            </section>
+
+            <nav class="flex justify-between">
+                <section class="flex gap-x-1">
+                    <button class="premium-feature" @onclick="() => ToggleMode(false, false, false, !IsRecapping)">Recap</button>
+                    <button class="premium-feature">Exam</button>
+                </section>
+
+                <section>
+                    @if (IsStudying)
+                    {
+                        <button class="primary" @onclick="() => ToggleMode(false, false, false, false)">Read</button>
+                    }
+                    else if (IsConfiguring)
+                    {
+                        <button class="primary" @onclick="() => ToggleMode(false, false, false, false)">Read</button>
+                    }
+                    else if (IsRecapping)
+                    {
+                        <button class="primary" @onclick="() => ToggleMode(false, false, false, false)">Read</button>
+                    }
+                    else
+                    {
+                        <button class="primary" @onclick="() => ToggleMode(false, true, false, false)">Study</button>
+                    }
+                </section>
+            </nav>
+        </header>
+
+        <div class="flex-1 overflow-y-auto">
+            @if (Details?.Sections is not null)
+            {
+                <ul class="space-y-2">
+                    @foreach (var sectionPart in ValidSections)
+                    {
+                        <li class="flex items-center gap-x-2">
+                            @* Main Button *@
+                            <button style="@StyleForPart(sectionPart)" class="part-button @(PartClasses(sectionPart))" @onclick="() => ViewPart(sectionPart)">
+                                <span>@NameForPart(sectionPart)</span>
+                                @if (IsStudying)
+                                {
+                                    <span class="flex items-center gap-x-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                                        </svg>
+                                        <span>@NoteCountForPart(sectionPart)</span>
+                                    </span>
+                                }
+                            </button>
+
+                            @if (!(IsEditing || IsStudying || IsConfiguring))
+                            {
+                                @if (Document?.HasRead(sectionPart) == true)
+                                {
+                                    <button class="secondary" title="Mark as unread" @onclick="() => ToggleRead(sectionPart)">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" class="size-5">
+                                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16" />
+                                            <path d="m10.97 4.97-.02.022-3.473 4.425-2.093-2.094a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-1.071-1.05" />
+                                        </svg>
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button class="secondary" title="Mark as read" @onclick="() => ToggleRead(sectionPart)">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16" class="size-5">
+                                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16" />
+                                        </svg>
+                                    </button>
+                                }
+                            }
+
+                            @* Settings Button *@
+                            <button class="secondary" @onclick="() => TogglePartSettings(sectionPart)" title="Settings">
+                                @if (ShowingPartSettings == sectionPart)
+                                {
+                                    <span>OK</span>
+                                }
+                                else
+                                {
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                    </svg>
+                                }
+                            </button>
+                        </li>
+
+                        @if (ShowingPartSettings == sectionPart)
+                        {
+                            <DocumentPartSettings DocumentId="Document.Id" PartNumber="sectionPart" OnSettingsChanged="HandleFieldUpdated" />
+                        }
+                    }
+                </ul>
+            }
+            else
+            {
+                <p>Loading sections...</p>
+            }
+        </div>
+
+        <footer class="flex justify-between">
+            <section>
+                <button class="secondary" @onclick="GoBack">Close</button>
+            </section>
+
+            <section class="flex gap-x-1">
+                @if (IsEditing)
+                {
+                    <button class="secondary" @onclick="CancelEditing">Cancel</button>
+                    <button class="primary" @onclick="SaveEdits">Save Edits</button>
+                }
+                else if (IsConfiguring)
+                {
+                    <button class="secondary" @onclick="CancelConfiguring">Cancel</button>
+                }
+                else
+                {
+                    <button class="primary" @onclick="StartConfiguring">Configure</button>
+                    <button class="primary" @onclick="StartEditing" disabled="@IsStudying">Edit Text</button>
+                }
+            </section>
+        </footer>
+    </div>
+
+    <div class="h-full col-span-2 overflow-y-auto p-4 flex flex-col gap-y-2 bg-teal-50">
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public Document Document { get; set; }
+
+    [Parameter]
+    public DocumentDetails Details { get; set; }
+
+    [Parameter]
+    public bool IsEditing { get; set; }
+
+    [Parameter]
+    public bool IsStudying { get; set; }
+    
+    [Parameter]
+    public bool IsConfiguring { get; set; }
+    
+    [Parameter]
+    public bool IsRecapping { get; set; }
+
+    [Parameter]
+    public int CurrentPart { get; set; }
+
+    [Parameter]
+    public Dictionary<int, DocumentPart> Parts { get; set; }
+
+    [Parameter]
+    public int? ShowingPartSettings { get; set; }
+
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnViewPart { get; set; }
+
+    [Parameter]
+    public EventCallback<(bool, bool, bool, bool)> OnModeToggle { get; set; }
+
+    [Parameter]
+    public EventCallback OnGoBack { get; set; }
+
+    [Parameter]
+    public EventCallback OnStartEditing { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancelEditing { get; set; }
+
+    [Parameter]
+    public EventCallback OnSaveEdits { get; set; }
+
+    [Parameter]
+    public EventCallback OnStartConfiguring { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancelConfiguring { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnTogglePartSettings { get; set; }
+
+    [Parameter]
+    public EventCallback OnFieldUpdated { get; set; }
+
+    [Parameter]
+    public EventCallback<int> OnToggleRead { get; set; }
+
+    public int Progress()
+    {
+        if (Document is null)
+        {
+            return 0;
+        }
+
+        var validSections = ValidSections;
+        if (validSections.Count == 0)
+        {
+            return 0;
+        }
+
+        return 100 * Document.PartsRead.Count / validSections.Count;
+    }
+
+    public List<int> ValidSections => SectionUtils.GetValidSections(Document, Parts);
+
+    public int NoteCountForPart(int p)
+    {
+        return Document?.Notes?.Where(n => n.DocumentPartNumber == p).Count() ?? 0;
+    }
+
+    public string NameForPart(int p)
+    {
+        return SectionUtils.GetPartName(p, Parts);
+    }
+
+    public string StyleForPart(int p)
+    {
+        if (!Parts.ContainsKey(p))
+        {
+            return "";
+        }
+        var settings = Parts[p];
+        if (settings is null || !settings.UseColour)
+        {
+            return "";
+        }
+        return $"border-bottom: 2px {settings.Colour} solid";
+    }
+
+    public string PartClasses(int p)
+    {
+        List<string> classes = [];
+        if (p == CurrentPart)
+        {
+            classes.Add("bg-blue-50");
+        }
+        else if (Document is not null && Document.HasRead(p))
+        {
+            classes.Add("bg-teal-50");
+        }
+        else
+        {
+            classes.Add("bg-white");
+        }
+
+        if (IsStudying)
+        {
+            classes.Add("flex justify-between");
+        }
+
+        return string.Join(' ', classes);
+    }
+
+    private async Task ViewPart(int part)
+    {
+        await OnViewPart.InvokeAsync(part);
+    }
+
+    private async Task ToggleMode(bool isEditing, bool isStudying, bool isConfiguring, bool isRecapping)
+    {
+        await OnModeToggle.InvokeAsync((isEditing, isStudying, isConfiguring, isRecapping));
+    }
+
+    private async Task GoBack()
+    {
+        await OnGoBack.InvokeAsync();
+    }
+
+    private async Task StartEditing()
+    {
+        await OnStartEditing.InvokeAsync();
+    }
+
+    private async Task CancelEditing()
+    {
+        await OnCancelEditing.InvokeAsync();
+    }
+
+    private async Task SaveEdits()
+    {
+        await OnSaveEdits.InvokeAsync();
+    }
+
+    private async Task TogglePartSettings(int part)
+    {
+        await OnTogglePartSettings.InvokeAsync(part);
+    }
+
+    private async Task HandleFieldUpdated()
+    {
+        await OnFieldUpdated.InvokeAsync();
+    }
+
+    private async Task ToggleRead(int part)
+    {
+        await OnToggleRead.InvokeAsync(part);
+    }
+
+    private async Task StartConfiguring()
+    {
+        await OnStartConfiguring.InvokeAsync();
+    }
+
+    private async Task CancelConfiguring()
+    {
+        await OnCancelConfiguring.InvokeAsync();
+    }
+
+    public class DocumentDetails
+    {
+        public List<int>? Sections { get; set; }
+        private Document Target { get; }
+
+        public DocumentDetails(Document document)
+        {
+            Target = document;
+        }
+
+        public async Task LoadSections()
+        {
+            var path = Target.FullPath;
+            if (Directory.Exists(path))
+            {
+                Sections = Directory.GetFiles(path, "*.txt")
+                    .Select(f => int.Parse(Path.GetFileNameWithoutExtension(f)))
+                    .Order()
+                    .ToList();
+            }
+        }
+    }
+} 

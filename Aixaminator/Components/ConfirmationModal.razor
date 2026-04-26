@@ -1,0 +1,66 @@
+@using Microsoft.Extensions.Logging
+
+@inject ILogger<ConfirmationModal> Log
+
+@if (Open)
+{
+    <div class="modal-wrapper" @onclick="() => Cancel()">
+        <div class="modal-content mini flex flex-col gap-y-4" @onclick:stopPropagation="true">
+            <div class="flex">
+                <h3 class="flex-1">@Title</h3>
+                <button class="secondary" type="button" @onclick="() => Cancel()">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-4">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="flex-1">
+                <p>@Message</p>
+            </div>
+
+            <div class="flex justify-end gap-x-2">
+                <button class="secondary" @onclick="Continue">Continue</button>
+                <button class="primary" @onclick="Cancel">Return</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public bool Open { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> OpenChanged { get; set; }
+
+    [Parameter]
+    public string Title { get; set; } = "Confirmation";
+
+    [Parameter]
+    public string Message { get; set; } = "Are you sure you want to continue without taking notes?";
+
+    [Parameter]
+    public EventCallback OnContinue { get; set; }
+
+    [Parameter]
+    public EventCallback OnCancel { get; set; }
+
+    private async Task Continue()
+    {
+        await OpenChanged.InvokeAsync(false);
+        if (OnContinue.HasDelegate)
+        {
+            await OnContinue.InvokeAsync();
+        }
+    }
+
+    private async Task Cancel()
+    {
+        await OpenChanged.InvokeAsync(false);
+        if (OnCancel.HasDelegate)
+        {
+            await OnCancel.InvokeAsync();
+        }
+    }
+} 

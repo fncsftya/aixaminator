@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <PackageId>drittich.$(AssemblyName)</PackageId>
+    <Title>A library for slicing text data into smaller chunks while attempting to preserve context.</Title>
+    <Authors>drittich</Authors>
+    <Description>A library for slicing text data into smaller chunks while attempting to preserve context.</Description>
+    <PackageProjectUrl>https://github.com/drittich/SemanticSlicer</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/drittich/SemanticSlicer</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>ai,openai,gpt,llm,langchain,embeddings</PackageTags>
+    <PackageReleaseNotes>- Updated Tiktoken to v2
+    </PackageReleaseNotes>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Version>1.4</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="HtmlAgilityPack" Version="1.11.72" />
+    <PackageReference Include="Tiktoken" Version="2.2.0" />
+  </ItemGroup>
+
+</Project>
