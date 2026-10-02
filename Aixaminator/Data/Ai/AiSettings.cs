@@ -87,13 +87,26 @@ public class AiSettings
                     }
                 }
             }
+        },
+        // https://openrouter.ai/models
+        {
+            "openrouter", new()
+            {
+                {
+                    AiActionType.Chat, new()
+                    {
+                        { "deepseek/deepseek-v4.1-flash", "DeepSeek V4.1 Flash" }
+                    }
+                }
+            }
         }
     };
 
     public static readonly Dictionary<string, string> ProviderNames = new()
     {
         { "openai", "OpenAI" },
-        { "google", "Google" }
+        { "google", "Google" },
+        { "openrouter", "OpenRouter" }
     };
 
     [JsonIgnore]

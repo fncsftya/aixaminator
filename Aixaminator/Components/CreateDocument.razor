@@ -3,10 +3,8 @@
 @using Aixaminator.Utils
 @using System.Text.RegularExpressions
 @using Importers
-@using Microsoft.JSInterop
 
 @inject AppDbContext Context
-@inject IJSRuntime JSRuntime
 
 <div class="w-full md:w-1/2 mx-auto">
     <h3>Add Document</h3>
@@ -48,9 +46,10 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
                                 </svg>
                             </div>
-                            <button type="button" @onclick="TriggerFileInput" class="flex shrink-0 items-center gap-x-1.5 rounded-r-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 outline-1 -outline-offset-1 outline-gray-300 hover:bg-gray-50 focus:relative focus:outline-2 focus:-outline-offset-2 focus:outline-teal-600">
+                            @* A label opens the picker natively; a JS-triggered click loses the user gesture WebKit requires *@
+                            <label for="fileInput" class="flex shrink-0 cursor-pointer items-center gap-x-1.5 rounded-r-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 outline-1 -outline-offset-1 outline-gray-300 hover:bg-gray-50 focus:relative focus:outline-2 focus:-outline-offset-2 focus:outline-teal-600">
                                 Browse
-                            </button>
+                            </label>
                         </div>
                         <ValidationMessage For="@(() => importModel.SelectedFile)" class="mt-2 text-sm text-red-600" />
                     </div>
@@ -308,12 +307,6 @@
             status = PipelineStatus.NotStarted;
             StateHasChanged();
         }
-    }
-
-    private async Task TriggerFileInput()
-    {
-        // Use JS interop to trigger the file input's click event
-        await JSRuntime.InvokeVoidAsync("eval", "document.getElementById('fileInput').click()");
     }
 
     private enum ImportTab

@@ -48,56 +48,61 @@ public class AiConnection : IAiConnection
                 {
                     model = modelName;
                 }
-                // Default models if none specified
-                else if (provider.Name == "openai")
+                // Default model if none specified
+                else
                 {
-                    model = actionType switch
-                    {
-                        AiActionType.Chat => "gpt-4o-mini",
-                        _ => string.Empty
-                    };
+                    model = DefaultModel(provider.Name, actionType);
                 }
-                // Add Google provider defaults
-                else if (provider.Name == "google")
-                {
-                    model = actionType switch
-                    {
-                        AiActionType.Chat => "gemini-2.0-flash",
-                        _ => string.Empty
-                    };
-                }
-                
+
                 return (provider, model);
             }
         }
-        
+
         // Fallback to the first provider if available
         var fallbackProvider = settings.Ai.AiProviders.FirstOrDefault();
         if (fallbackProvider != null)
         {
-            if (fallbackProvider.Name == "openai")
-            {
-                model = actionType switch
-                {
-                    AiActionType.Chat => "gpt-4o-mini",
-                    _ => string.Empty
-                };
-            }
-            // Add Google provider defaults for fallback case
-            else if (fallbackProvider.Name == "google")
-            {
-                model = actionType switch
-                {
-                    AiActionType.Chat => "gemini-2.0-flash",
-                    _ => string.Empty
-                };
-            }
-            
+            model = DefaultModel(fallbackProvider.Name, actionType);
             return (fallbackProvider, model);
         }
         
         return (new AiProvider(), string.Empty);
     }
+
+    private static string DefaultModel(string providerName, AiActionType actionType)
+    {
+        // The first model listed for each action type is the default
+        if (AiSettings.AvailableModels.TryGetValue(providerName, out var models) &&
+            models.TryGetValue(actionType, out var actionModels))
+        {
+            return actionModels.Keys.First();
+        }
+        return string.Empty;
+    }
+
+    // OpenRouter exposes an OpenAI-compatible API, so both share the OpenAI connector
+    private OpenAIChatCompletionService CreateOpenAiCompatibleChat(AiProvider provider, string model)
+    {
+        string modelToUse = !string.IsNullOrEmpty(model) ? model : DefaultModel(provider.Name, AiActionType.Chat);
+
+        if (provider.Name == "openrouter")
+        {
+#pragma warning disable SKEXP0010
+            return new OpenAIChatCompletionService(
+                modelId: modelToUse,
+                endpoint: new Uri(OpenRouterBaseUrl),
+                apiKey: provider.ApiKey,
+                httpClient: ClientFactory.CreateClient());
+#pragma warning restore SKEXP0010
+        }
+
+        return new OpenAIChatCompletionService(
+            modelId: modelToUse,
+            apiKey: provider.ApiKey,
+            httpClient: ClientFactory.CreateClient());
+    }
+
+    private const string OpenRouterBaseUrl = "https://openrouter.ai/api/v1";
 
     public async Task<string> CleanPage(string pageText)
     {
@@ -209,15 +214,9 @@ public class AiConnection : IAiConnection
 
     private async Task<string> SendJsonRequest(AiProvider provider, string model, string systemPrompt, List<string> userPrompts, string schema)
     {
-        if (provider.Name == "openai")
+        if (provider.Name is "openai" or "openrouter")
         {
-            // Use the selected model or fall back to default if empty
-            string modelToUse = !string.IsNullOrEmpty(model) ? model : "gpt-4o-mini";
-
-            OpenAIChatCompletionService chat = new(
-                modelId: modelToUse,
-                apiKey: provider.ApiKey,
-                httpClient: ClientFactory.CreateClient());
+            var chat = CreateOpenAiCompatibleChat(provider, model);
             ChatHistory history = [];
             history.AddSystemMessage(systemPrompt);
 
@@ -230,7 +229,8 @@ public class AiConnection : IAiConnection
             OpenAI.Chat.ChatResponseFormat responseFormat = OpenAI.Chat.ChatResponseFormat.CreateJsonSchemaFormat(
                 jsonSchemaFormatName: "quiz_result",
                 jsonSchema: BinaryData.FromString(schema),
-                jsonSchemaIsStrict: true);
+                // The schema doesn't set additionalProperties, which strict mode requires on OpenRouter
+                jsonSchemaIsStrict: provider.Name == "openai");
 
 #pragma warning disable SKEXP0010
             var executionSettings = new OpenAIPromptExecutionSettings
@@ -268,15 +268,9 @@ public class AiConnection : IAiConnection
 
     private async Task<string> SendChatRequest(AiProvider provider, string model, string systemPrompt, List<string> userPrompts)
     {
-        if (provider.Name == "openai")
-        {            
-            // Use the selected model or fall back to default if empty
-            string modelToUse = !string.IsNullOrEmpty(model) ? model : "gpt-4o-mini";
-            
-            OpenAIChatCompletionService chat = new(
-                modelId: modelToUse,
-                apiKey: provider.ApiKey,
-                httpClient: ClientFactory.CreateClient());
+        if (provider.Name is "openai" or "openrouter")
+        {
+            var chat = CreateOpenAiCompatibleChat(provider, model);
             ChatHistory history = [];
             history.AddSystemMessage(systemPrompt);
             
@@ -329,6 +323,13 @@ public class AiConnection : IAiConnection
             {
                 client.DefaultRequestHeaders.Add("x-goog-api-key", apiKey);
                 var response = await client.GetAsync("https://generativelanguage.googleapis.com/v1beta/models");
+                return response.IsSuccessStatusCode;
+            }
+            else if (provider == "openrouter")
+            {
+                // The models list is public, so check the key itself instead
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+                var response = await client.GetAsync($"{OpenRouterBaseUrl}/key");
                 return response.IsSuccessStatusCode;
             }
         }

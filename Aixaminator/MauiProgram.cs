@@ -13,6 +13,9 @@ public static class MauiProgram
         var builder = MauiApp.CreateBuilder();
         builder.UseMauiApp<App>();
 
+        // The database and settings live here; SQLite won't create missing parent directories.
+        Directory.CreateDirectory(Constants.GetInternalFilepath());
+
         builder.Services.AddMauiBlazorWebView();
 
 #if DEBUG
