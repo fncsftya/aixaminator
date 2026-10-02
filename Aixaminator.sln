@@ -9,8 +9,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SemanticSlicer", "SemanticS
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Importers", "Importers\Importers.csproj", "{9332A779-B327-4875-9251-826445D3861B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shared.AI", "Shared.AI\Shared.AI.csproj", "{0171085F-D059-4A4C-89EE-04CCE93236E8}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Aixaminator.Tests", "Aixaminator.Tests\Aixaminator.Tests.csproj", "{0AC7328F-A8C9-4C49-873F-87530F09E724}"
 EndProject
 Global
@@ -32,10 +30,6 @@ Global
 		{9332A779-B327-4875-9251-826445D3861B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9332A779-B327-4875-9251-826445D3861B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9332A779-B327-4875-9251-826445D3861B}.Release|Any CPU.Build.0 = Release|Any CPU
-		{0171085F-D059-4A4C-89EE-04CCE93236E8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{0171085F-D059-4A4C-89EE-04CCE93236E8}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{0171085F-D059-4A4C-89EE-04CCE93236E8}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{0171085F-D059-4A4C-89EE-04CCE93236E8}.Release|Any CPU.Build.0 = Release|Any CPU
 		{0AC7328F-A8C9-4C49-873F-87530F09E724}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{0AC7328F-A8C9-4C49-873F-87530F09E724}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0AC7328F-A8C9-4C49-873F-87530F09E724}.Release|Any CPU.ActiveCfg = Release|Any CPU

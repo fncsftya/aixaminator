@@ -2,6 +2,5 @@
 
 public enum AiActionType
 {
-    Chat,
-    Embedding
+    Chat
 }

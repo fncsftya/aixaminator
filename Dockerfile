@@ -85,7 +85,6 @@ RUN sed -i "$PLAIN_TFM_ONLY" Aixaminator/Aixaminator.csproj
 COPY Aixaminator.Tests/Aixaminator.Tests.csproj Aixaminator.Tests/
 COPY Importers/Importers.csproj Importers/
 COPY SemanticSlicer/SemanticSlicer.csproj SemanticSlicer/
-COPY Shared.AI/Shared.AI.csproj Shared.AI/
 RUN dotnet restore Aixaminator.Tests/Aixaminator.Tests.csproj
 
 COPY . .

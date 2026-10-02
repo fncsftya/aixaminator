@@ -1,17 +1,10 @@
 ﻿using Aixaminator.Data;
-using Microsoft.Data.Sqlite;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
-using Microsoft.SemanticKernel.Connectors.Sqlite;
-using Microsoft.SemanticKernel.Connectors.Google;
-using Microsoft.SemanticKernel.Embeddings;
-using SemanticSlicer;
-using SemanticSlicer.Models;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Text.Json;
-using Shared.AI.Data;
 using System.Text;
 using Aixaminator.Models;
 using Microsoft.Extensions.AI;
@@ -40,7 +33,7 @@ public class AiConnection : IAiConnection
         var settings = SettingsService.Settings;
         string model = string.Empty;
         
-        // Get the action type (chat or embedding)
+        // Get the action type
         var actionType = AiSettings.ActionTypes[action];
         
         // If we have an action-provider mapping, use it
@@ -61,7 +54,6 @@ public class AiConnection : IAiConnection
                     model = actionType switch
                     {
                         AiActionType.Chat => "gpt-4o-mini",
-                        AiActionType.Embedding => "text-embedding-3-small",
                         _ => string.Empty
                     };
                 }
@@ -71,7 +63,6 @@ public class AiConnection : IAiConnection
                     model = actionType switch
                     {
                         AiActionType.Chat => "gemini-2.0-flash",
-                        AiActionType.Embedding => "text-embedding-004",
                         _ => string.Empty
                     };
                 }
@@ -89,7 +80,6 @@ public class AiConnection : IAiConnection
                 model = actionType switch
                 {
                     AiActionType.Chat => "gpt-4o-mini",
-                    AiActionType.Embedding => "text-embedding-3-small",
                     _ => string.Empty
                 };
             }
@@ -99,7 +89,6 @@ public class AiConnection : IAiConnection
                 model = actionType switch
                 {
                     AiActionType.Chat => "gemini-2.0-flash",
-                    AiActionType.Embedding => "text-embedding-004",
                     _ => string.Empty
                 };
             }
@@ -127,57 +116,6 @@ public class AiConnection : IAiConnection
 
 {pageText}
 """;
-
-        return await SendChatRequest(provider, model, systemPrompt, new List<string> { userPrompt });
-    }
-
-    public async Task<string> ClassifyDocument(List<string> topics)
-    {
-        var (provider, model) = GetProviderAndModelForAction(AiAction.DocumentClassification);
-
-        var parts = topics.Select(t => $"""
-            <topic>
-                <sentences>
-                    {string.Join("\n", t.Split(" ~@@~ ").Select(s => $"<sentence>{s}</sentence>"))}
-                </sentences>
-            </topic>
-        """).ToList();
-        
-        var systemPrompt = """
-            You are a tool for classifying text.
-            You will be given a list of topics represented by simple xml markup.
-            Determine the themes for each topic from the provided sentences.
-        """;
-        var userPrompt = $"""
-            I will attach some text sampled from various topics.
-            Note: the text has been extracted and may have artefacts.
-            Reply with a concise, comma-separated list of themes for each topic. One topic per line.
-            If possible, also perform named entity recognition. If there are any names present,
-            state them on the final line as comma-separated values and indicate them with an asterisk.
-            If names have been included in previous topics, do not include them in
-            subsequent ones.
-
-            Example input:
-            <topics>
-                <topic>
-                    <sentences>
-                        <sentence>In Chapters 2 and 3 we have studied developments in theological and philosophical hermeneutics.</sentence>
-                        <sentence>In this chapter we have reported and commented on the develop-
-                                  ment of philosophical hermeneutics from Schleiermacher through
-                                  Dilthey, Husserl, Heidegger, Gadamer, Habermas to Ricreur.</sentence>
-                    </sentences>
-                </topic>
-            </topics>
-
-            Example output:
-            Theology, philosophy.
-            * Schleiermacher, Dilthey, Husserl, Heidegger, Gadamer, Habermas, Ricreur.
-
-            Classify the following text:
-            <topics>
-            {string.Join("", parts)}
-            </topics>
-        """;
 
         return await SendChatRequest(provider, model, systemPrompt, new List<string> { userPrompt });
     }
@@ -372,162 +310,6 @@ public class AiConnection : IAiConnection
         else
         {
             throw new NotImplementedException();
-        }
-    }
-
-    public async Task EmbedDocument(string targetPath, string documentText)
-    {
-        var slicer = new Slicer(new() { MaxChunkTokenCount = 150 });
-        var chunks = slicer.GetDocumentChunks(documentText).Chunk(1536);
-
-        Debug.Assert(chunks is not null);
-        
-        var (provider, model) = GetProviderAndModelForAction(AiAction.DocumentSplitting);
-        
-        if (provider.Name == "openai" || provider.Name == "google")
-        {
-            await DoEmbedding(targetPath, chunks, provider, model);
-        }
-        else
-        {
-            throw new NotImplementedException();
-        }
-    }
-
-    private async Task DoEmbedding(string targetPath, IEnumerable<DocumentChunk[]> chunks, AiProvider provider, string model)
-    {
-        var sw = Stopwatch.StartNew();
-        var tempPath = Path.GetTempFileName();
-        
-        try
-        {
-            using (var connection = new SqliteConnection(@"Data Source=:memory:;Pooling=false"))
-            {
-                await connection.OpenAsync();
-                connection.EnableExtensions(true);
-                connection.LoadExtension("vec0");
-                
-                await GenerateEmbeddings(connection, chunks, provider, model);
-
-                using (var bakConnection = new SqliteConnection(@$"Data Source={tempPath};Pooling=false"))
-                {
-                    connection.BackupDatabase(bakConnection);
-                    SqliteConnection.ClearPool(bakConnection);
-                }
-
-                await connection.CloseAsync();
-                SqliteConnection.ClearPool(connection);
-            }
-
-            File.Copy(tempPath, targetPath, true);
-        }
-        finally
-        {
-            try
-            {
-                File.Delete(tempPath);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Failed to delete temporary file: {ex.Message}");
-            }
-
-            Debug.WriteLine($"Embeddings generated in {sw.ElapsedMilliseconds} ms");
-            sw.Stop();
-        }
-    }
-
-    private async Task GenerateEmbeddings(SqliteConnection connection, IEnumerable<DocumentChunk[]> chunks, AiProvider provider, string model)
-    {
-        var vectorStore = new SqliteVectorStore(connection);
-
-        #pragma warning disable SKEXP0010, SKEXP0001
-        // Use the selected model or fall back to default if empty
-        string modelToUse = !string.IsNullOrEmpty(model) ? model : 
-            provider.Name == "google" ? "text-embedding-004" : "text-embedding-3-small";
-        
-        // Create the appropriate embedding service based on the provider
-        ITextEmbeddingGenerationService tes;
-        
-        if (provider.Name == "openai")
-        {
-            tes = new OpenAITextEmbeddingGenerationService(
-                modelToUse,
-                provider.ApiKey);
-        }
-        else if (provider.Name == "google")
-        {
-            #pragma warning disable SKEXP0070
-            tes = new GoogleAITextEmbeddingGenerationService(
-                modelToUse,
-                provider.ApiKey,
-                httpClient: ClientFactory.CreateClient());
-            #pragma warning restore SKEXP0070
-        }
-        else
-        {
-            throw new NotImplementedException($"Provider '{provider.Name}' is not supported for embeddings.");
-        }
-
-        // Create the appropriate collection based on provider
-        string collectionName = "sk_document_chunks";
-        
-        // Handle different provider types
-        if (provider.Name.ToLowerInvariant() == "google")
-        {
-            var collection = vectorStore.GetCollection<ulong, GoogleDocumentChunk>(collectionName);
-            await collection.CreateCollectionIfNotExistsAsync();
-            
-            var tasks = chunks.Select(async group =>
-            {
-                var embeddings = await tes.GenerateEmbeddingsAsync(group.Select(c => c.Content).ToList());
-                
-                // Create Google document chunks
-                var googleChunks = embeddings.Select((embedding, i) =>
-                {
-                    var chunk = group[i];
-                    return new GoogleDocumentChunk
-                    {
-                        ChunkId = (ulong)chunk.Index,
-                        Content = chunk.Content,
-                        Embedding = embedding
-                    };
-                }).ToList();
-                
-                await collection.UpsertBatchAsync(googleChunks).LastAsync();
-            });
-            
-            using var transaction = await connection.BeginTransactionAsync();
-            await Task.WhenAll(tasks);
-            await transaction.CommitAsync();
-        }
-        else // OpenAI or default
-        {
-            var collection = vectorStore.GetCollection<ulong, OpenAIDocumentChunk>(collectionName);
-            await collection.CreateCollectionIfNotExistsAsync();
-            
-            var tasks = chunks.Select(async group =>
-            {
-                var embeddings = await tes.GenerateEmbeddingsAsync(group.Select(c => c.Content).ToList());
-                
-                // Create OpenAI document chunks
-                var openAIChunks = embeddings.Select((embedding, i) =>
-                {
-                    var chunk = group[i];
-                    return new OpenAIDocumentChunk
-                    {
-                        ChunkId = (ulong)chunk.Index,
-                        Content = chunk.Content,
-                        Embedding = embedding
-                    };
-                }).ToList();
-                
-                await collection.UpsertBatchAsync(openAIChunks).LastAsync();
-            });
-            
-            using var transaction = await connection.BeginTransactionAsync();
-            await Task.WhenAll(tasks);
-            await transaction.CommitAsync();
         }
     }
 

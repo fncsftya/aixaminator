@@ -10,10 +10,6 @@ public class AiSettings
 
     public Dictionary<string, string> ActionModelMap { get; set; } = new Dictionary<string, string>();
 
-    public bool EnableDocumentSplitting { get; set; } = true;
-
-    public bool EnableDocumentClassification { get; set; } = true;
-
     public void AddProvider(AiProvider provider)
     {
         AiProviders.Add(provider);
@@ -76,13 +72,6 @@ public class AiSettings
                         { "gpt-4o-mini", "GPT-4o Mini" },
                         { "gpt-4o", "GPT-4o" }
                     }
-                },
-                {
-                    AiActionType.Embedding, new()
-                    {
-                        { "text-embedding-3-small", "Text Embedding 3 Small" },
-                        { "text-embedding-3-large", "Text Embedding 3 Large" }
-                    }
                 }
             }
         },
@@ -95,12 +84,6 @@ public class AiSettings
                     {
                         { "gemini-2.0-flash", "Gemini 2.0 Flash" },
                         { "gemini-2.0-flash-lite", "Gemini 2.0 Flash Lite" }
-                    }
-                },
-                {
-                    AiActionType.Embedding, new()
-                    {
-                        { "text-embedding-004", "Text Embedding 004" }
                     }
                 }
             }
@@ -119,9 +102,7 @@ public class AiSettings
     [JsonIgnore]
     public static readonly Dictionary<string, AiActionType> ActionTypes = new()
     {
-        { AiAction.DocumentSplitting, AiActionType.Embedding },
         { AiAction.DocumentCleaning, AiActionType.Chat },
-        { AiAction.DocumentClassification, AiActionType.Chat },
         { AiAction.QuizGeneration, AiActionType.Chat }
     };
 }
