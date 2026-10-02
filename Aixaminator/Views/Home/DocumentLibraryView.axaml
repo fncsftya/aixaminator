@@ -1,0 +1,45 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aixaminator.ViewModels.Home"
+             x:Class="Aixaminator.Views.Home.DocumentLibraryView"
+             x:DataType="vm:DocumentLibraryViewModel">
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,12">
+            <TextBlock Classes="h1" Text="My Documents" />
+            <Border Classes="error-banner" IsVisible="{Binding ErrorMessage, Converter={x:Static ObjectConverters.IsNotNull}}">
+                <TextBlock Classes="error" Text="{Binding ErrorMessage}" />
+            </Border>
+            <TextBlock Text="Loading documents..." IsVisible="{Binding IsLoading}" />
+            <TextBlock x:Name="EmptyMessage" Classes="hint" IsVisible="{Binding IsEmpty}"
+                       Text="You haven't added any documents yet. Use the Add Document tab to import one." />
+        </StackPanel>
+
+        <ScrollViewer>
+            <ItemsControl x:Name="DocumentList" ItemsSource="{Binding Documents}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:DocumentListItemViewModel">
+                        <Border Classes="card" Padding="4" Margin="0,0,0,8">
+                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12">
+                                <Button Classes="open-document"
+                                        Command="{Binding OpenCommand}"
+                                        Background="Transparent" BorderThickness="0"
+                                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                                        ToolTip.Tip="Open this document">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Classes="hint" Text="{Binding Description}" IsVisible="{Binding HasDescription}"
+                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                </Button>
+                                <TextBlock Grid.Column="1" Text="{Binding ProgressText}" VerticalAlignment="Center"
+                                           ToolTip.Tip="Parts read" />
+                                <Button Grid.Column="2" Classes="danger" Content="Delete"
+                                        Command="{Binding DeleteCommand}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </DockPanel>
+</UserControl>

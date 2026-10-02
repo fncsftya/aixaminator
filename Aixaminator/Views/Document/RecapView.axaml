@@ -1,0 +1,64 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aixaminator.ViewModels.Document"
+             x:Class="Aixaminator.Views.Document.RecapView"
+             x:DataType="vm:RecapViewModel">
+    <ScrollViewer>
+        <StackPanel Spacing="16" Margin="0,0,12,0">
+            <Border Classes="card">
+                <StackPanel Spacing="12">
+                    <TextBlock Classes="h2" Text="Select parts for recap" />
+                    <TextBlock Classes="hint" Text="No parts found in this document." IsVisible="{Binding !HasParts}" />
+                    <ScrollViewer MaxHeight="260" IsVisible="{Binding HasParts}">
+                        <ItemsControl x:Name="PartOptions" ItemsSource="{Binding PartOptions}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:RecapPartOptionViewModel">
+                                    <CheckBox Content="{Binding DisplayName}" IsChecked="{Binding IsSelected}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                    <Button x:Name="GenerateButton" Classes="premium" HorizontalAlignment="Center"
+                            Content="{Binding GenerateButtonText}" Command="{Binding GenerateCommand}"
+                            IsVisible="{Binding HasParts}" />
+                </StackPanel>
+            </Border>
+
+            <Border Classes="error-banner" IsVisible="{Binding HasError}">
+                <StackPanel Spacing="8">
+                    <TextBlock Classes="error" FontWeight="SemiBold" Text="Quiz generation failed" />
+                    <TextBlock x:Name="ErrorText" Classes="error" Text="{Binding ErrorMessage}" />
+                    <Button Classes="premium" Content="Try again" Command="{Binding GenerateCommand}" />
+                </StackPanel>
+            </Border>
+
+            <Border Classes="card" IsVisible="{Binding HasQuiz}">
+                <StackPanel Spacing="12">
+                    <TextBlock Classes="h2" Text="Quiz" />
+                    <ItemsControl x:Name="Questions" ItemsSource="{Binding Questions}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:QuizQuestionViewModel">
+                                <StackPanel Spacing="6" Margin="0,0,0,16">
+                                    <TextBlock Text="{Binding Text}" FontWeight="Medium" TextWrapping="Wrap" />
+                                    <ItemsControl ItemsSource="{Binding Answers}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:QuizAnswerViewModel">
+                                                <RadioButton Classes="answer" GroupName="{Binding GroupName}"
+                                                             IsChecked="{Binding IsSelected}">
+                                                    <TextBlock Text="{Binding Text}" TextWrapping="Wrap" />
+                                                </RadioButton>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <TextBlock Text="{Binding Feedback}" IsVisible="{Binding IsAnswered}"
+                                               Classes.success="{Binding IsAnsweredCorrectly}"
+                                               Classes.error="{Binding !IsAnsweredCorrectly}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

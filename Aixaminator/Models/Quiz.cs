@@ -1,29 +1,28 @@
-using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-namespace Aixaminator.Models
+namespace Aixaminator.Models;
+
+/// <summary>A multiple-choice quiz, as returned by the AI (see the JSON schema in <see cref="Services.AiConnection"/>).</summary>
+public sealed class Quiz
 {
-    public class Quiz
-    {
-        [JsonPropertyName("quiz")]
-        public QuizContent Content { get; set; }
-    }
+    [JsonPropertyName("quiz")]
+    public QuizContent Content { get; set; } = new();
+}
 
-    public class QuizContent
-    {
-        [JsonPropertyName("questions")]
-        public List<QuizQuestion> Questions { get; set; }
-    }
+public sealed class QuizContent
+{
+    [JsonPropertyName("questions")]
+    public List<QuizQuestion> Questions { get; set; } = [];
+}
 
-    public class QuizQuestion
-    {
-        [JsonPropertyName("text")]
-        public string Text { get; set; }
+public sealed class QuizQuestion
+{
+    [JsonPropertyName("text")]
+    public string Text { get; set; } = string.Empty;
 
-        [JsonPropertyName("correctAnswer")]
-        public string CorrectAnswer { get; set; }
+    [JsonPropertyName("correctAnswer")]
+    public string CorrectAnswer { get; set; } = string.Empty;
 
-        [JsonPropertyName("incorrectAnswers")]
-        public List<string> IncorrectAnswers { get; set; }
-    }
-} 
+    [JsonPropertyName("incorrectAnswers")]
+    public List<string> IncorrectAnswers { get; set; } = [];
+}

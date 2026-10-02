@@ -1,0 +1,123 @@
+diff a/Aixaminator/Aixaminator.csproj b/Aixaminator/Aixaminator.csproj	(rejected hunks)
+@@ -1,90 +1,53 @@
+-﻿<Project Sdk="Microsoft.NET.Sdk.Razor">
++<Project Sdk="Microsoft.NET.Sdk">
+ 
+     <PropertyGroup>
++        <OutputType>WinExe</OutputType>
+         <TargetFramework>net10.0</TargetFramework>
+-        <!-- Uncomment to also build the tizen app. You will need to install tizen by following this: https://github.com/Samsung/Tizen.NET -->
+-        <!-- <TargetFramework>net10.0</TargetFramework> -->
+-
+-        <!-- Note for MacCatalyst:
+-            The default runtime is maccatalyst-x64, except in Release config, in which case the default is maccatalyst-x64;maccatalyst-arm64.
+-            When specifying both architectures, use the plural <RuntimeIdentifiers> instead of the singular <RuntimeIdentifier>.
+-            The Mac App Store will NOT accept apps with ONLY maccatalyst-arm64 indicated;
+-            either BOTH runtimes must be indicated or ONLY macatalyst-x64. -->
+-        <!-- For example: <RuntimeIdentifiers>maccatalyst-x64;maccatalyst-arm64</RuntimeIdentifiers> -->
+-
+-		<OutputType Condition="'$(TargetFramework)' != 'net10.0'">Exe</OutputType>
+         <RootNamespace>Aixaminator</RootNamespace>
+-        <UseMaui>true</UseMaui>
+-        <SingleProject>true</SingleProject>
+         <ImplicitUsings>enable</ImplicitUsings>
+-        <EnableDefaultCssItems>false</EnableDefaultCssItems>
+         <Nullable>enable</Nullable>
++        <ApplicationManifest>app.manifest</ApplicationManifest>
+ 
+-        <!-- Display name -->
+-        <ApplicationTitle>Aixaminator</ApplicationTitle>
+-
+-        <!-- App Identifier -->
+-        <ApplicationId>com.companyname.aixaminator</ApplicationId>
+-
+-        <!-- Versions -->
+-        <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+-        <ApplicationVersion>1</ApplicationVersion>
+-
+-        <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
+-        <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
+-        <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">24.0</SupportedOSPlatformVersion>
+-        <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'tizen'">6.5</SupportedOSPlatformVersion>
+-
+-        <!-- The .NET 10 Apple workloads pin an exact Xcode version; allow building with newer Xcode releases. -->
+-        <ValidateXcodeVersion>false</ValidateXcodeVersion>
++        <AssemblyTitle>Aixaminator</AssemblyTitle>
++        <Product>Aixaminator</Product>
++        <Version>2.0.0</Version>
+     </PropertyGroup>
+ 
+     <ItemGroup>
+-        <!-- App Icon -->
+-        <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#512BD4" />
+-
+-        <!-- Splash Screen -->
+-        <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128" />
+-
+-        <!-- Images -->
+-        <MauiImage Include="Resources\Images\*" />
+-        <MauiImage Update="Resources\Images\dotnet_bot.svg" BaseSize="168,208" />
+-
+-        <!-- Custom Fonts -->
+-        <MauiFont Include="Resources\Fonts\*" />
+-
+-        <!-- Raw Assets (also remove the "Resources\Raw" prefix) -->
+-        <MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+-    </ItemGroup>
+-
+-    <ItemGroup>
+-        <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
+-        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.12" />
+-        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
+-          <PrivateAssets>all</PrivateAssets>
+-          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
++        <!-- UI -->
++        <PackageReference Include="Avalonia" Version="12.1.3" />
++        <PackageReference Include="Avalonia.Desktop" Version="12.1.3" />
++        <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.3" />
++        <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.3" />
++        <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3">
++            <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
++            <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
+         </PackageReference>
++        <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
++
++        <!-- Persistence -->
+         <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.12" />
+-        <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.12">
+-          <PrivateAssets>all</PrivateAssets>
+-          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
++        <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.12">
++            <PrivateAssets>all</PrivateAssets>
++            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+         </PackageReference>
++        <!-- Pin transitive dependencies of the EF Core design-time tooling to the versions used by the rest of
++             the graph; otherwise restore has to look up older minimum versions from a feed. -->
++        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
++        <PackageReference Include="Newtonsoft.Json" Version="13.0.4" PrivateAssets="all" />
++
++        <!-- Hosting / infrastructure -->
++        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
+         <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.12" />
+-        <PackageReference Include="Microsoft.Maui.Controls" Version="10.0.110" />
+-        <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="10.0.110" />
++        <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.12" />
+         <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.12" />
+-        <PackageReference Include="Microsoft.SemanticKernel" Version="1.80.1" />
+-        <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+-        <PackageReference Include="System.Linq.Async" Version="7.0.1" />
+-    </ItemGroup>
+ 
+-    <ItemGroup>
+-      <ProjectReference Include="..\SemanticSlicer\SemanticSlicer.csproj" />
+-      <ProjectReference Include="..\Importers\Importers.csproj" />
++        <!-- AI -->
++        <PackageReference Include="Microsoft.SemanticKernel" Version="1.80.1" />
+     </ItemGroup>
+ 
+     <ItemGroup>
+-      <Folder Include="Resources\Fonts\" />
++        <ProjectReference Include="..\Importers\Importers.csproj" />
+     </ItemGroup>
+ 
+ </Project>

@@ -1,25 +1,23 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
-
 namespace Aixaminator.Data;
 
+/// <summary>
+/// A document that has been imported into the library.
+/// The text of each part is stored on disk (see <see cref="Services.IDocumentContentStore"/>);
+/// everything else lives in the database.
+/// </summary>
 public class Document
 {
     public Guid Id { get; set; }
-    // Name is the name shown to the user. It can be changed.
-    public string Name { get; set; }
-    // Path is the name of the directory in the Documents folder.
-    // It must not change.
-    // TODO probably would make more sense to just use the id as the path
-    // ie. remove this completely
-    public string Path { get; set; }
+
+    /// <summary>Name shown to the user. It can be changed.</summary>
+    public required string Name { get; set; }
+
+    /// <summary>Optional summary, used to give the AI more context when generating quizzes.</summary>
     public string? Description { get; set; }
-    public List<int> PartsRead { get; set; } = new();
 
-    public ICollection<DocumentPart> Parts { get; set; } = new List<DocumentPart>();
-    public ICollection<Note> Notes { get; set; } = new List<Note>();
+    public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
-    [NotMapped]
-    public string FullPath => Utils.Constants.GetDocumentBasePath(Path);
+    public List<DocumentPart> Parts { get; set; } = [];
 
-    public bool HasRead(int part) => PartsRead.Contains(part);
+    public List<Note> Notes { get; set; } = [];
 }

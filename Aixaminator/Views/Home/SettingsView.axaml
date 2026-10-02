@@ -1,0 +1,171 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aixaminator.ViewModels.Home"
+             xmlns:ai="using:Aixaminator.Models.Ai"
+             xmlns:conv="using:Aixaminator.Converters"
+             xmlns:sys="using:System"
+             x:Class="Aixaminator.Views.Home.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+    <ScrollViewer>
+        <StackPanel MaxWidth="960" Spacing="16" Margin="0,0,16,16" HorizontalAlignment="Left">
+            <StackPanel Orientation="Horizontal" Spacing="16">
+                <TextBlock Classes="h1" Text="Application Settings" />
+                <TextBlock x:Name="SaveStatus" Text="{Binding Status}" VerticalAlignment="Bottom" Margin="0,0,0,4" />
+            </StackPanel>
+
+            <!-- AI providers -->
+            <StackPanel Spacing="4">
+                <TextBlock Classes="h2" Text="AI" />
+                <Separator />
+            </StackPanel>
+
+            <StackPanel Orientation="Horizontal" Spacing="16">
+                <Button x:Name="AddProviderButton" Classes="accent" Content="Add Provider"
+                        Command="{Binding StartAddingProviderCommand}" IsVisible="{Binding !IsAddingProvider}" />
+                <StackPanel Orientation="Horizontal" Spacing="12" IsVisible="{Binding IsAddingProvider}">
+                    <StackPanel>
+                        <TextBlock Classes="label" Text="Provider Name" />
+                        <ComboBox x:Name="NewProviderSelector" MinWidth="180" PlaceholderText="Select Provider"
+                                  ItemsSource="{Binding AvailableProviders}" SelectedItem="{Binding NewProvider}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ProviderOption">
+                                    <TextBlock Text="{Binding DisplayName}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Classes="label" Text="API Key" />
+                        <TextBox x:Name="NewProviderApiKey" MinWidth="280" PasswordChar="•" Text="{Binding NewProviderApiKey}" />
+                    </StackPanel>
+                    <Button x:Name="SaveProviderButton" Classes="accent" Content="Save" VerticalAlignment="Bottom"
+                            Command="{Binding AddProviderCommand}" />
+                    <Button Content="Cancel" VerticalAlignment="Bottom" Command="{Binding CancelAddingProviderCommand}" />
+                </StackPanel>
+            </StackPanel>
+
+            <StackPanel Spacing="8">
+                <TextBlock Classes="h3" Text="Providers" />
+                <TextBlock Classes="hint" IsVisible="{Binding !HasProviders}"
+                           Text="No AI providers are configured yet. Add one to use the AI features (Recap and Clean Text)." />
+                <Grid ColumnDefinitions="180,*,180,Auto" ColumnSpacing="12" IsVisible="{Binding HasProviders}">
+                    <TextBlock Text="Provider" FontWeight="SemiBold" />
+                    <TextBlock Grid.Column="1" Text="API Key" FontWeight="SemiBold" />
+                </Grid>
+                <ItemsControl x:Name="ProviderList" ItemsSource="{Binding Providers}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ProviderViewModel">
+                            <Grid ColumnDefinitions="180,*,180,Auto" ColumnSpacing="12" Margin="0,4">
+                                <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1" Text="{Binding MaskedApiKey}" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource MutedForegroundBrush}" />
+                                <Button Grid.Column="2" Classes="premium" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                        Content="{Binding ConnectionStatus}" Command="{Binding TestConnectionCommand}" />
+                                <Button Grid.Column="3" Classes="danger" Content="Remove" Command="{Binding RemoveCommand}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+            <StackPanel Spacing="8">
+                <TextBlock Classes="h3" Text="Actions" />
+                <Grid ColumnDefinitions="200,220,220" ColumnSpacing="12">
+                    <TextBlock Text="Action" FontWeight="SemiBold" />
+                    <TextBlock Grid.Column="1" Text="Provider" FontWeight="SemiBold" />
+                    <TextBlock Grid.Column="2" Text="Model" FontWeight="SemiBold" />
+                </Grid>
+                <ItemsControl x:Name="ActionList" ItemsSource="{Binding Actions}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ActionMappingViewModel">
+                            <Grid ColumnDefinitions="200,220,220" ColumnSpacing="12" Margin="0,4">
+                                <TextBlock Text="{Binding Action}" VerticalAlignment="Center" />
+                                <ComboBox Grid.Column="1" HorizontalAlignment="Stretch"
+                                          ItemsSource="{Binding ProviderOptions}" SelectedItem="{Binding SelectedProvider}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:ProviderOption">
+                                            <TextBlock Text="{Binding DisplayName}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <ComboBox Grid.Column="2" HorizontalAlignment="Stretch" PlaceholderText="Select Model"
+                                          ItemsSource="{Binding ModelOptions}" SelectedItem="{Binding SelectedModel}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="ai:AiModel">
+                                            <TextBlock Text="{Binding DisplayName}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <ItemsControl ItemsSource="{Binding UnavailableActions}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="sys:String">
+                            <Grid ColumnDefinitions="200,*" ColumnSpacing="12" Margin="0,4">
+                                <TextBlock Text="{Binding}" FontStyle="Italic" Foreground="{DynamicResource MutedForegroundBrush}" />
+                                <TextBlock Grid.Column="1" Text="Not yet available" FontStyle="Italic"
+                                           Foreground="{DynamicResource MutedForegroundBrush}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+            <!-- Display -->
+            <StackPanel Spacing="4">
+                <TextBlock Classes="h2" Text="Display" />
+                <Separator />
+            </StackPanel>
+
+            <StackPanel Spacing="16">
+                <StackPanel>
+                    <TextBlock Classes="label" Text="Background Color" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Border Width="30" Height="30" CornerRadius="4" BorderThickness="1"
+                                BorderBrush="{DynamicResource CardBorderBrush}"
+                                Background="{Binding BackgroundColor, Converter={x:Static conv:AppConverters.HexToBrush}}" />
+                        <TextBox x:Name="BackgroundColorInput" Width="140" Text="{Binding BackgroundColor}" />
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel>
+                    <TextBlock Classes="label" Text="Text Color" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Border Width="30" Height="30" CornerRadius="4" BorderThickness="1"
+                                BorderBrush="{DynamicResource CardBorderBrush}"
+                                Background="{Binding ForegroundColor, Converter={x:Static conv:AppConverters.HexToBrush}}" />
+                        <TextBox x:Name="ForegroundColorInput" Width="140" Text="{Binding ForegroundColor}" />
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel>
+                    <TextBlock Classes="label" Text="Font" />
+                    <ComboBox x:Name="FontFamilySelector" MinWidth="220"
+                              ItemsSource="{Binding FontFamilies}" SelectedItem="{Binding FontFamily}" />
+                    <TextBlock Classes="hint" Margin="0,4,0,0" Text="The style of the text displayed in the reader." />
+                </StackPanel>
+
+                <StackPanel>
+                    <TextBlock Classes="label" Text="Font Size" />
+                    <ComboBox x:Name="FontSizeSelector" MinWidth="100"
+                              ItemsSource="{Binding FontSizes}" SelectedItem="{Binding FontSize}" />
+                    <TextBlock Classes="hint" Margin="0,4,0,0" Text="The size of the text displayed in the reader." />
+                </StackPanel>
+
+                <StackPanel>
+                    <TextBlock Classes="label" Text="Reader Preview" />
+                    <Border x:Name="Preview" Padding="16" CornerRadius="4" BorderThickness="1"
+                            BorderBrush="{DynamicResource CardBorderBrush}"
+                            Background="{Binding Preview.Background, Converter={x:Static conv:AppConverters.HexToBrush}}">
+                        <TextBlock x:Name="PreviewText" Text="The quick brown fox jumps over the lazy dog." TextWrapping="Wrap"
+                                   FontFamily="{Binding Preview.FontFamily, Converter={x:Static conv:AppConverters.ToFontFamily}}"
+                                   FontSize="{Binding Preview.FontSize}"
+                                   Foreground="{Binding Preview.Foreground, Converter={x:Static conv:AppConverters.HexToBrush}}" />
+                    </Border>
+                </StackPanel>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -1,0 +1,68 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aixaminator.ViewModels.Document"
+             xmlns:models="using:Aixaminator.Models"
+             xmlns:conv="using:Aixaminator.Converters"
+             xmlns:controls="using:Aixaminator.Controls"
+             xmlns:behaviors="using:Aixaminator.Behaviors"
+             x:Class="Aixaminator.Views.Document.ReaderView"
+             x:DataType="vm:ReaderViewModel">
+    <DockPanel>
+        <!-- Toolbar. Its buttons aren't focusable so clicking them keeps the text selection. -->
+        <Grid DockPanel.Dock="Bottom" ColumnDefinitions="Auto,*,Auto" Margin="0,12,0,0" IsVisible="{Binding HasPart}">
+            <Button x:Name="PreviousButton" Classes="accent" Content="Previous" MinWidth="110"
+                    HorizontalContentAlignment="Center" Command="{Binding PreviousCommand}" />
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="16">
+                <StackPanel x:Name="HighlightMenu" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                            IsVisible="{Binding HasSelection}">
+                    <PathIcon Data="{StaticResource Icon.Highlighter}" ToolTip.Tip="Highlight the selection" />
+                    <ItemsControl x:Name="HighlightColours" ItemsSource="{Binding HighlightColours}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Orientation="Horizontal" Spacing="6" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="models:HighlightColour">
+                                <Button Classes="swatch" Focusable="False"
+                                        ToolTip.Tip="{Binding Name, StringFormat='Highlight {0}'}"
+                                        Background="{Binding Hex, Converter={x:Static conv:AppConverters.HexToBrush}}"
+                                        Command="{Binding $parent[ItemsControl].((vm:ReaderViewModel)DataContext).HighlightCommand}"
+                                        CommandParameter="{Binding}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+                <Button x:Name="AddNoteButton" Classes="accent" Content="Add note" Focusable="False"
+                        Command="{Binding AddNoteCommand}" />
+                <Button x:Name="AddQuestionButton" Classes="accent" Content="Add question" Focusable="False"
+                        Command="{Binding AddQuestionCommand}" />
+            </StackPanel>
+
+            <Button x:Name="NextButton" Grid.Column="2" Classes="accent" Content="Next" MinWidth="110"
+                    HorizontalContentAlignment="Center" Command="{Binding NextCommand}" />
+        </Grid>
+
+        <Border CornerRadius="4" BorderThickness="1" BorderBrush="{DynamicResource CardBorderBrush}"
+                Background="{Binding Appearance.Background, Converter={x:Static conv:AppConverters.HexToBrush}}">
+            <Panel>
+                <ScrollViewer x:Name="ReaderScroller" Padding="24,16"
+                              behaviors:ScrollReset.Trigger="{Binding PartNumber}">
+                    <controls:ReaderTextBlock x:Name="ReaderText"
+                                              Source="{Binding Content}"
+                                              TextWrapping="Wrap"
+                                              SelectionStart="{Binding SelectionStart, Mode=TwoWay}"
+                                              SelectionEnd="{Binding SelectionEnd, Mode=TwoWay}"
+                                              FontFamily="{Binding Appearance.FontFamily, Converter={x:Static conv:AppConverters.ToFontFamily}}"
+                                              FontSize="{Binding Appearance.FontSize}"
+                                              Foreground="{Binding Appearance.Foreground, Converter={x:Static conv:AppConverters.HexToBrush}}" />
+                </ScrollViewer>
+                <TextBlock x:Name="NoContent" Text="&lt;No content&gt;" Margin="24,16" IsVisible="{Binding IsEmpty}"
+                           Foreground="{Binding Appearance.Foreground, Converter={x:Static conv:AppConverters.HexToBrush}}" />
+                <TextBlock x:Name="NoPart" Classes="hint" Text="Select a part to start reading." IsVisible="{Binding !HasPart}"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Panel>
+        </Border>
+    </DockPanel>
+</UserControl>

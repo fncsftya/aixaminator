@@ -1,0 +1,42 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aixaminator.ViewModels.Document"
+             x:Class="Aixaminator.Views.Document.ConfigureView"
+             x:DataType="vm:ConfigureViewModel">
+    <ScrollViewer>
+        <StackPanel Spacing="16" Margin="0,0,12,0">
+            <Border Classes="card">
+                <StackPanel Spacing="12">
+                    <TextBlock Classes="h2" Text="Document Settings" />
+                    <StackPanel>
+                        <TextBlock Classes="label" Text="Document Title" />
+                        <TextBox x:Name="DocumentTitleInput" Text="{Binding Name}" PlaceholderText="Document Title" />
+                    </StackPanel>
+                    <StackPanel>
+                        <TextBlock Classes="label" Text="Document Description" />
+                        <TextBox x:Name="DocumentDescriptionInput" Text="{Binding Description}" PlaceholderText="Document Description"
+                                 AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80" />
+                        <TextBlock Classes="hint" Margin="0,4,0,0" Text="This will help the AI give more accurate quizzes." />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <Border Classes="card">
+                <StackPanel Spacing="12">
+                    <TextBlock Classes="h2" Text="Hidden Parts" />
+                    <TextBlock Classes="hint" Text="No hidden parts found." IsVisible="{Binding !HasHiddenParts}" />
+                    <ItemsControl x:Name="HiddenPartList" ItemsSource="{Binding HiddenParts}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:HiddenPartViewModel">
+                                <Grid ColumnDefinitions="*,Auto" Margin="0,2">
+                                    <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" />
+                                    <Button Grid.Column="1" Content="Unhide" Command="{Binding UnhideCommand}" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -1,101 +1,61 @@
-﻿using Aixaminator.Data;
-using Aixaminator.Utils;
-using Newtonsoft.Json;
-using System.Diagnostics;
-using System.Threading;
+using System.Text.Json;
+using Aixaminator.Models;
 
 namespace Aixaminator.Services;
 
-public class SettingsService : ISettingsService
+/// <summary>Stores <see cref="ApplicationSettings"/> as JSON in <see cref="IAppPaths.SettingsPath"/>.</summary>
+public sealed class SettingsService(IAppPaths paths) : ISettingsService
 {
-    private readonly SemaphoreSlim _saveSemaphore = new SemaphoreSlim(1, 1);
-    
-    public ApplicationSettings Settings { get; set; }
-    public bool AttemptMigration { get; set; } = true;
+    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
 
-    public async Task Init()
+    private readonly SemaphoreSlim _lock = new(1, 1);
+
+    public ApplicationSettings Settings { get; private set; } = new();
+
+    public event EventHandler? SettingsSaved;
+
+    public async Task LoadAsync(CancellationToken cancellationToken = default)
     {
-        if (Settings is null)
-        {
-            await LoadSettings();
-        }
-    }
-
-    private string SettingsPath => Constants.GetInternalFilepath("settings.json");
-
-    public async Task LoadSettings()
-    {
-        Debug.Assert(Settings is null);
-        if (File.Exists(SettingsPath))
+        ApplicationSettings? loaded = null;
+        if (File.Exists(paths.SettingsPath))
         {
             try
             {
-                var json = await File.ReadAllTextAsync(SettingsPath);
-                if (json is null)
-                {
-                    Settings = new ApplicationSettings();
-                    await SaveSettings();
-                }
-                else
-                {
-                    var loadedSettings = JsonConvert.DeserializeObject<ApplicationSettings>(json);
-                    if (loadedSettings is null)
-                    {
-                        Settings = new ApplicationSettings();
-                        await SaveSettings();
-                    }
-                    else
-                    {
-                        Settings = loadedSettings;
-                    }
-                }
+                await using var stream = File.OpenRead(paths.SettingsPath);
+                loaded = await JsonSerializer.DeserializeAsync<ApplicationSettings>(stream, JsonOptions, cancellationToken);
             }
-            catch (Exception ex)
+            catch (JsonException)
             {
-                // Create default settings if loading failed
-                Settings = new ApplicationSettings();
-                Console.WriteLine($"Failed to load settings: {ex.Message}");
-                await SaveSettings();
+                // Keep the broken file so the user can recover anything in it (e.g. API keys).
+                File.Move(paths.SettingsPath, paths.SettingsPath + ".invalid", overwrite: true);
             }
         }
-        else
-        {
-            Settings = new ApplicationSettings();
-            await SaveSettings();
-        }
+
+        Settings = loaded ?? new ApplicationSettings();
+        Settings.Normalise();
+        await SaveAsync(cancellationToken);
     }
 
-    public async Task SaveSettings()
+    public async Task SaveAsync(CancellationToken cancellationToken = default)
     {
-        Debug.Assert(Settings is not null);
-        var json = JsonConvert.SerializeObject(Settings, Formatting.Indented);
-        
-        // Use semaphore to ensure only one save operation happens at a time
-        await _saveSemaphore.WaitAsync();
+        await _lock.WaitAsync(cancellationToken);
         try
         {
-            await File.WriteAllTextAsync(SettingsPath, json);
+            Directory.CreateDirectory(Path.GetDirectoryName(paths.SettingsPath)!);
+
+            // Write to a temporary file first so a crash mid-write can't corrupt the settings.
+            var temporary = paths.SettingsPath + ".tmp";
+            await using (var stream = File.Create(temporary))
+            {
+                await JsonSerializer.SerializeAsync(stream, Settings, JsonOptions, cancellationToken);
+            }
+            File.Move(temporary, paths.SettingsPath, overwrite: true);
         }
         finally
         {
-            _saveSemaphore.Release();
+            _lock.Release();
         }
-    }
 
-    public void SaveSettingsSync()
-    {
-        Debug.Assert(Settings is not null);
-        var json = JsonConvert.SerializeObject(Settings, Formatting.Indented);
-        
-        // Use semaphore to ensure only one save operation happens at a time
-        _saveSemaphore.Wait();
-        try
-        {
-            File.WriteAllText(SettingsPath, json);
-        }
-        finally
-        {
-            _saveSemaphore.Release();
-        }
+        SettingsSaved?.Invoke(this, EventArgs.Empty);
     }
 }

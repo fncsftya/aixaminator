@@ -1,0 +1,124 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aixaminator.ViewModels.Document"
+             xmlns:conv="using:Aixaminator.Converters"
+             x:Class="Aixaminator.Views.Document.DocumentView"
+             x:DataType="vm:DocumentViewModel">
+    <Panel>
+        <TextBlock Text="Loading" IsVisible="{Binding IsLoading}"
+                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+
+        <StackPanel IsVisible="{Binding LoadFailed}" Spacing="12"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+            <TextBlock Text="An error occurred whilst loading the document." />
+            <TextBlock Classes="error" Text="{Binding ErrorMessage}" IsVisible="{Binding HasError}" />
+            <Button Content="Back to My Documents" Command="{Binding CloseCommand}" HorizontalAlignment="Center" />
+        </StackPanel>
+
+        <Grid ColumnDefinitions="1*,2*" IsVisible="{Binding IsReady}">
+            <!-- Sidebar -->
+            <Border Background="{DynamicResource SidebarBackgroundBrush}"
+                    BorderBrush="{DynamicResource CardBorderBrush}" BorderThickness="0,0,1,0">
+                <DockPanel Margin="16">
+                    <StackPanel DockPanel.Dock="Top" Spacing="8">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                            <TextBlock x:Name="DocumentName" Classes="h2" Text="{Binding Name}"
+                                       TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Name}" VerticalAlignment="Center" />
+                            <TextBlock x:Name="ProgressText" Grid.Column="1" FontSize="22" Text="{Binding ProgressText}"
+                                       ToolTip.Tip="Parts read" VerticalAlignment="Center" />
+                        </Grid>
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <Button x:Name="RecapButton" Classes="premium" Content="Recap" Command="{Binding ToggleRecapCommand}" />
+                                <Button Classes="premium" Content="Exam" IsEnabled="False"
+                                        ToolTip.Tip="Coming soon" ToolTip.ShowOnDisabled="True" />
+                            </StackPanel>
+                            <Panel Grid.Column="2">
+                                <Button x:Name="StudyButton" Classes="accent" Content="Study"
+                                        Command="{Binding StudyCommand}" IsVisible="{Binding ShowStudyButton}" />
+                                <Button x:Name="ReadButton" Classes="accent" Content="Read"
+                                        Command="{Binding ReadCommand}" IsVisible="{Binding ShowReadButton}" />
+                            </Panel>
+                        </Grid>
+                    </StackPanel>
+
+                    <Grid DockPanel.Dock="Bottom" ColumnDefinitions="Auto,*,Auto" Margin="0,12,0,0">
+                        <Button x:Name="CloseButton" Content="Close" Command="{Binding CloseCommand}" />
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding ShowEditActions}">
+                                <Button x:Name="CancelEditButton" Content="Cancel" Command="{Binding CancelEditCommand}" />
+                                <Button x:Name="SaveEditsButton" Classes="accent" Content="Save Edits" Command="{Binding SaveEditsCommand}" />
+                            </StackPanel>
+                            <Button x:Name="CancelConfigureButton" Content="Cancel" Command="{Binding CloseConfigureCommand}"
+                                    IsVisible="{Binding ShowConfigureActions}" />
+                            <StackPanel Orientation="Horizontal" Spacing="4" IsVisible="{Binding ShowDefaultActions}">
+                                <Button x:Name="ConfigureButton" Classes="accent" Content="Configure" Command="{Binding ConfigureCommand}" />
+                                <Button x:Name="EditButton" Classes="accent" Content="Edit Text" Command="{Binding EditCommand}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+
+                    <ScrollViewer Margin="0,12,0,0">
+                        <ItemsControl x:Name="PartList" ItemsSource="{Binding Parts}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:PartItemViewModel">
+                                    <StackPanel Spacing="4" Margin="0,0,4,6">
+                                        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="4">
+                                            <Button Classes="part"
+                                                    Classes.current="{Binding IsCurrent}"
+                                                    Classes.read="{Binding IsRead}"
+                                                    Command="{Binding SelectCommand}">
+                                                <Border BorderThickness="0,0,0,2" Padding="0,0,0,2"
+                                                        BorderBrush="{Binding AccentColour, Converter={x:Static conv:AppConverters.HexToBrush}}">
+                                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                                        <TextBlock Text="{Binding DisplayName}" TextTrimming="CharacterEllipsis" />
+                                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4"
+                                                                    IsVisible="{Binding ShowNoteCount}" ToolTip.Tip="Notes">
+                                                            <Path Classes="stroke-icon" Data="{StaticResource Icon.Note}" />
+                                                            <TextBlock Text="{Binding NoteCount}" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                            </Button>
+                                            <Button Grid.Column="1" Classes="read-toggle"
+                                                    IsVisible="{Binding ShowReadToggle}"
+                                                    Command="{Binding ToggleReadCommand}"
+                                                    ToolTip.Tip="{Binding ReadToggleToolTip}">
+                                                <Panel>
+                                                    <PathIcon Data="{StaticResource Icon.CheckCircle}" IsVisible="{Binding IsRead}" />
+                                                    <PathIcon Data="{StaticResource Icon.Circle}" IsVisible="{Binding !IsRead}" />
+                                                </Panel>
+                                            </Button>
+                                            <Button Grid.Column="2" Classes="settings-toggle"
+                                                    Command="{Binding ToggleSettingsCommand}" ToolTip.Tip="Settings">
+                                                <Panel>
+                                                    <TextBlock Text="OK" IsVisible="{Binding IsSettingsOpen}" />
+                                                    <PathIcon Data="{StaticResource Icon.Gear}" IsVisible="{Binding !IsSettingsOpen}" />
+                                                </Panel>
+                                            </Button>
+                                        </Grid>
+                                        <ContentControl Content="{Binding Settings}" IsVisible="{Binding IsSettingsOpen}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+
+            <!-- Content for the current mode -->
+            <DockPanel Grid.Column="1" Background="{DynamicResource ContentBackgroundBrush}">
+                <Border DockPanel.Dock="Top" Classes="error-banner" Margin="16,16,16,0" IsVisible="{Binding HasError}">
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <TextBlock x:Name="ErrorText" Classes="error" Text="{Binding ErrorMessage}" VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Content="Dismiss" Command="{Binding DismissErrorCommand}" />
+                    </Grid>
+                </Border>
+                <Button x:Name="CloseModeButton" DockPanel.Dock="Bottom" Classes="accent" Content="Close"
+                        HorizontalAlignment="Right" Margin="16,0,16,16"
+                        Command="{Binding ReadCommand}" IsVisible="{Binding ShowCloseModeButton}" />
+                <ContentControl x:Name="ModeHost" Content="{Binding ModeContent}" Margin="16" />
+            </DockPanel>
+        </Grid>
+    </Panel>
+</UserControl>

@@ -1,0 +1,46 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Aixaminator.ViewModels"
+        x:Class="Aixaminator.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Title="Aixaminator"
+        Width="1280" Height="768"
+        MinWidth="900" MinHeight="560"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.KeyBindings>
+        <KeyBinding Gesture="Escape" Command="{Binding Dialogs.ActiveDialog.CancelCommand, FallbackValue={x:Null}}" />
+    </Window.KeyBindings>
+
+    <Panel>
+        <!-- The current page; disabled while a dialog is open so the dialog is modal. -->
+        <ContentControl x:Name="PageHost"
+                        Content="{Binding Navigation.CurrentPage}"
+                        IsEnabled="{Binding Dialogs.ActiveDialog, Converter={x:Static ObjectConverters.IsNull}}" />
+
+        <StackPanel IsVisible="{Binding IsStarting}"
+                    HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+            <ProgressBar IsIndeterminate="True" Width="200" />
+            <TextBlock Text="Loading..." HorizontalAlignment="Center" />
+        </StackPanel>
+
+        <Border Classes="error-banner"
+                IsVisible="{Binding StartupError, Converter={x:Static ObjectConverters.IsNotNull}}"
+                HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="600">
+            <TextBlock x:Name="StartupErrorText" Classes="error" Text="{Binding StartupError}" />
+        </Border>
+
+        <!-- Modal dialogs -->
+        <Panel x:Name="DialogOverlay"
+               IsVisible="{Binding Dialogs.ActiveDialog, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <Border x:Name="DialogBackdrop"
+                    Background="{DynamicResource OverlayBrush}"
+                    PointerPressed="OnBackdropPressed" />
+            <Border Classes="dialog"
+                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                    MinWidth="420" MaxWidth="640" Margin="24">
+                <ContentControl x:Name="DialogHost" Content="{Binding Dialogs.ActiveDialog}" />
+            </Border>
+        </Panel>
+    </Panel>
+</Window>

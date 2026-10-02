@@ -1,0 +1,21 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aixaminator.ViewModels.Dialogs"
+             x:Class="Aixaminator.Views.Dialogs.ConfirmationDialogView"
+             x:DataType="vm:ConfirmationDialogViewModel">
+    <StackPanel Spacing="16" MaxWidth="520">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <TextBlock Classes="h2" Text="{Binding Title}" VerticalAlignment="Center" />
+            <Button Grid.Column="1" Padding="6" ToolTip.Tip="Close" Command="{Binding CancelCommand}">
+                <Path Classes="stroke-icon" Data="{StaticResource Icon.Close}" Width="12" Height="12" />
+            </Button>
+        </Grid>
+        <TextBlock x:Name="Message" Text="{Binding Message}" TextWrapping="Wrap" />
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+            <Button x:Name="ConfirmButton" Content="{Binding ConfirmText}" Classes.danger="{Binding IsDestructive}"
+                    Command="{Binding ConfirmCommand}" />
+            <Button x:Name="CancelButton" Classes="accent" Content="{Binding CancelText}"
+                    Command="{Binding CancelCommand}" />
+        </StackPanel>
+    </StackPanel>
+</UserControl>

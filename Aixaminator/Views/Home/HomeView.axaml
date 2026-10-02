@@ -1,0 +1,17 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aixaminator.ViewModels.Home"
+             x:Class="Aixaminator.Views.Home.HomeView"
+             x:DataType="vm:HomeViewModel">
+    <TabControl x:Name="Tabs" SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}" Padding="16,8">
+        <TabItem x:Name="MyDocumentsTab" Header="My Documents">
+            <ContentControl Content="{Binding Library}" />
+        </TabItem>
+        <TabItem x:Name="AddDocumentTab" Header="Add Document">
+            <ContentControl Content="{Binding CreateDocument}" />
+        </TabItem>
+        <TabItem x:Name="SettingsTab" Header="Settings">
+            <ContentControl Content="{Binding Settings}" />
+        </TabItem>
+    </TabControl>
+</UserControl>

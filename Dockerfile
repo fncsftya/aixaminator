@@ -1,30 +1,20 @@
 # syntax=docker/dockerfile:1
 # check=skip=FromPlatformFlagConstDisallowed
 #
-# Builds the C# solution and runs the test suite on linux/amd64.
+# Builds the C# solution and runs the test suite (including the headless Avalonia UI tests) on linux/amd64.
 #
 #   docker build --platform linux/amd64 -t aixaminator .
 #   docker run --rm aixaminator                     # run all tests
 #   docker run --rm aixaminator dotnet build ...    # or any other command
 #
-# It is also a self-contained Avalonia toolchain for the MAUI -> Avalonia port:
-# the Avalonia packages (+ templates, native Skia libs and an X virtual
-# framebuffer) are fetched at build time, so Avalonia projects can be created,
-# restored, built, tested (headless) and run inside the container with
-# --network none.
-#
-# The MAUI UI app only targets net10.0 here: the iOS / Mac Catalyst target
-# frameworks need Apple tooling and cannot be built on Linux. The net10.0 target
-# is the one the test project references.
+# It is also a self-contained Avalonia toolchain: the Avalonia packages (+ templates, native Skia libs and an
+# X virtual framebuffer) are fetched at build time, so Avalonia projects can be created, restored, built,
+# tested (headless) and run inside the container with --network none.
 FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/sdk:10.0@sha256:28e7a5db4f5d40cc805acd939a065668ba2e17d697a09153054dce98db240d0e
 
 ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 \
     DOTNET_NOLOGO=1 \
     DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
-
-# UseMaui needs the MAUI SDK workload manifest even for the plain net10.0 target.
-# maui-android is the only MAUI workload installable on Linux.
-RUN dotnet workload install maui-android
 
 # Native libraries Avalonia/SkiaSharp load at runtime on Linux, plus xvfb so a
 # real (non-headless) Avalonia window can be run and screenshotted.
@@ -45,7 +35,7 @@ RUN dotnet new install Avalonia.Templates::${AVALONIA_VERSION}
 # osx included) into ~/.nuget/packages, which later offline restores resolve
 # from. Add packages here when the port starts using new ones. Avalonia's
 # headless test package (Avalonia.Headless.XUnit) needs xunit v3, hence xunit.v3
-# below; the existing xunit v2 test project restores its own packages further down.
+# below; the test project restores its remaining packages further down.
 RUN mkdir /tmp/avalonia-warmup && cd /tmp/avalonia-warmup \
     && printf '%s\n' \
         '<Project Sdk="Microsoft.NET.Sdk">' \
@@ -71,27 +61,19 @@ RUN mkdir /tmp/avalonia-warmup && cd /tmp/avalonia-warmup \
 
 WORKDIR /src
 
-# The app's multi-target list is rewritten to net10.0 only (see the note at the
-# top). This is done with sed rather than -p:TargetFrameworks=..., because a
-# global TargetFrameworks makes NuGet treat the test project as cross-targeting
-# and the xunit adapter then never gets copied to the output folder.
-ARG PLAIN_TFM_ONLY="s#<TargetFrameworks>[^<]*</TargetFrameworks>#<TargetFramework>net10.0</TargetFramework>#"
-
 # Restore first, using only project files, so the package layer is cached
 # until a dependency changes.
 COPY Aixaminator.sln ./
 COPY Aixaminator/Aixaminator.csproj Aixaminator/
-RUN sed -i "$PLAIN_TFM_ONLY" Aixaminator/Aixaminator.csproj
 COPY Aixaminator.Tests/Aixaminator.Tests.csproj Aixaminator.Tests/
 COPY Importers/Importers.csproj Importers/
 COPY SemanticSlicer/SemanticSlicer.csproj SemanticSlicer/
-RUN dotnet restore Aixaminator.Tests/Aixaminator.Tests.csproj
+RUN dotnet restore Aixaminator.sln
 
 COPY . .
-RUN sed -i "$PLAIN_TFM_ONLY" Aixaminator/Aixaminator.csproj \
-    && dotnet build Aixaminator.Tests/Aixaminator.Tests.csproj --no-restore -c Release
+RUN dotnet build Aixaminator.sln --no-restore -c Release
 
-# Runtime must work with no network access: everything (SDK, workload, NuGet
-# packages incl. Avalonia, templates, native libs, compiled output) is fetched or built above. The command below uses
-# --no-build, which also skips restore, so nothing is downloaded when it runs.
+# Runtime must work with no network access: everything (SDK, NuGet packages incl. Avalonia, templates,
+# native libs, compiled output) is fetched or built above. The command below uses --no-build, which also
+# skips restore, so nothing is downloaded when it runs.
 CMD ["sh", "-c", "dotnet test Aixaminator.Tests/Aixaminator.Tests.csproj --no-build -c Release"]

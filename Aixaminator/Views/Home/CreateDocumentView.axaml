@@ -1,0 +1,71 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aixaminator.ViewModels.Home"
+             x:Class="Aixaminator.Views.Home.CreateDocumentView"
+             x:DataType="vm:CreateDocumentViewModel">
+    <ScrollViewer>
+        <StackPanel MaxWidth="640" Spacing="12" Margin="0,0,0,16">
+            <TextBlock Classes="h1" Text="Add Document" />
+
+            <Border Classes="error-banner" IsVisible="{Binding HasError}">
+                <TextBlock x:Name="ErrorText" Classes="error" Text="{Binding ErrorMessage}" />
+            </Border>
+
+            <!-- Form -->
+            <StackPanel Spacing="16" IsVisible="{Binding IsEditable}">
+                <StackPanel Orientation="Horizontal" Spacing="16">
+                    <RadioButton x:Name="FileSourceOption" GroupName="ImportSource" Content="Local File"
+                                 IsChecked="{Binding IsFileSource}" />
+                    <RadioButton x:Name="WebSourceOption" GroupName="ImportSource" Content="Web"
+                                 IsChecked="{Binding IsWebSource}" />
+                </StackPanel>
+
+                <StackPanel IsVisible="{Binding IsFileSource}">
+                    <TextBlock Classes="label" Text="Choose a file" />
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <TextBox x:Name="SelectedFileName" IsReadOnly="True" Text="{Binding SelectedFileName, Mode=OneWay}" />
+                        <Button x:Name="BrowseButton" Grid.Column="1" Content="Browse" Command="{Binding BrowseCommand}" />
+                    </Grid>
+                    <TextBlock Classes="hint" Margin="0,4,0,0" Text="PDF, EPUB and plain text files are supported." />
+                </StackPanel>
+
+                <StackPanel IsVisible="{Binding IsWebSource}">
+                    <TextBlock Classes="label" Text="Enter URL" />
+                    <TextBox x:Name="UrlInput" Text="{Binding Url}" PlaceholderText="https://en.wikipedia.org/wiki/Example" />
+                    <TextBlock Classes="hint" Margin="0,4,0,0" Text="Only Wikipedia articles are currently supported." />
+                </StackPanel>
+
+                <Border Classes="card" Padding="12,8">
+                    <StackPanel>
+                        <TextBlock Text="Split document into parts" FontWeight="Medium" />
+                        <TextBlock Classes="hint" Text="Automatic splitting and classification are not yet available, so documents are imported as a single part." />
+                    </StackPanel>
+                </Border>
+
+                <StackPanel>
+                    <TextBlock Classes="label" Text="Document Summary" />
+                    <TextBox x:Name="DescriptionInput" Text="{Binding Description}" AcceptsReturn="True" TextWrapping="Wrap"
+                             MinHeight="80" PlaceholderText="Provide a summary of this document" />
+                    <TextBlock Classes="hint" Margin="0,4,0,0" Text="This will help the AI give more accurate quizzes." />
+                </StackPanel>
+
+                <Button x:Name="CreateButton" Classes="accent" Content="Create" Command="{Binding CreateCommand}" />
+            </StackPanel>
+
+            <!-- Progress -->
+            <StackPanel Orientation="Horizontal" Spacing="12" IsVisible="{Binding IsBusy}">
+                <ProgressBar IsIndeterminate="True" Width="160" />
+                <TextBlock x:Name="StatusText" Text="{Binding StatusMessage}" VerticalAlignment="Center" />
+            </StackPanel>
+
+            <!-- Done -->
+            <StackPanel Spacing="12" IsVisible="{Binding IsCompleted}">
+                <TextBlock Text="Done! Your document has been added to your library." />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button x:Name="ViewDocumentButton" Classes="accent" Content="View your document" Command="{Binding ViewDocumentCommand}" />
+                    <Button x:Name="AddAnotherButton" Content="Add another document" Command="{Binding ResetCommand}" />
+                </StackPanel>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

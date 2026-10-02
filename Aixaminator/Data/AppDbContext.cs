@@ -1,34 +1,50 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 
 namespace Aixaminator.Data;
 
-public class AppDbContext : DbContext
+public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
-    public DbSet<Document> Documents { get; set; }
-    public DbSet<DocumentPart> DocumentParts { get; set; }
-    public DbSet<Note> Notes { get; set; }
+    public DbSet<Document> Documents => Set<Document>();
 
-    public AppDbContext(DbContextOptions<AppDbContext> options)
-    : base(options)
-    {
-    }
+    public DbSet<DocumentPart> DocumentParts => Set<DocumentPart>();
+
+    public DbSet<Note> Notes => Set<Note>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<DocumentPart>()
-            .HasKey(dp => new { dp.DocumentId, dp.PartNumber });
+        modelBuilder.Entity<Document>(document =>
+        {
+            document.Property(d => d.Name).IsRequired();
 
-        modelBuilder.Entity<Document>()
-            .HasMany(d => d.Notes)
-            .WithOne(n => n.Document)
-            .HasForeignKey(n => n.DocumentId);
+            document.HasMany(d => d.Parts)
+                .WithOne()
+                .HasForeignKey(p => p.DocumentId)
+                .OnDelete(DeleteBehavior.Cascade);
 
-        modelBuilder.Entity<Note>()
-            .HasOne(n => n.Part)
-            .WithMany(dp => dp.Notes)
-            .HasForeignKey(n => new { n.DocumentId, n.DocumentPartNumber })
-            .IsRequired(false);
+            document.HasMany(d => d.Notes)
+                .WithOne()
+                .HasForeignKey(n => n.DocumentId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
 
-        modelBuilder.ApplyConfiguration(new NotesConfiguration());
+        modelBuilder.Entity<DocumentPart>(part =>
+        {
+            part.HasKey(p => new { p.DocumentId, p.PartNumber });
+            part.Ignore(p => p.DisplayName);
+
+            part.HasMany<Note>()
+                .WithOne()
+                .HasForeignKey(n => new { n.DocumentId, n.DocumentPartNumber })
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Note>(note =>
+        {
+            note.Ignore(n => n.IsHighlight);
+            note.Ignore(n => n.IsQuestion);
+            note.Property(n => n.Kind).HasConversion<string>();
+            note.OwnsOne(n => n.Location);
+        });
     }
 }

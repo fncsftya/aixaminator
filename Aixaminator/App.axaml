@@ -1,0 +1,88 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:home="using:Aixaminator.ViewModels.Home"
+             xmlns:doc="using:Aixaminator.ViewModels.Document"
+             xmlns:dialogs="using:Aixaminator.ViewModels.Dialogs"
+             xmlns:homeViews="using:Aixaminator.Views.Home"
+             xmlns:docViews="using:Aixaminator.Views.Document"
+             xmlns:dialogViews="using:Aixaminator.Views.Dialogs"
+             x:Class="Aixaminator.App"
+             Name="Aixaminator"
+             RequestedThemeVariant="Default">
+    <!-- "Default" follows the operating system's light/dark setting. -->
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="/Styles/Icons.axaml" />
+            </ResourceDictionary.MergedDictionaries>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="CardBackgroundBrush" Color="#ffffff" />
+                    <SolidColorBrush x:Key="CardBorderBrush" Color="#d1d5db" />
+                    <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#f9fafb" />
+                    <SolidColorBrush x:Key="ContentBackgroundBrush" Color="#f0fdfa" />
+                    <SolidColorBrush x:Key="MutedForegroundBrush" Color="#6b7280" />
+                    <SolidColorBrush x:Key="DangerBrush" Color="#dc2626" />
+                    <SolidColorBrush x:Key="DangerHoverBrush" Color="#b91c1c" />
+                    <SolidColorBrush x:Key="PremiumBrush" Color="#4f46e5" />
+                    <SolidColorBrush x:Key="PremiumHoverBrush" Color="#4338ca" />
+                    <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="#fef2f2" />
+                    <SolidColorBrush x:Key="ErrorForegroundBrush" Color="#b91c1c" />
+                    <SolidColorBrush x:Key="SuccessForegroundBrush" Color="#15803d" />
+                    <SolidColorBrush x:Key="CurrentPartBrush" Color="#dbeafe" />
+                    <SolidColorBrush x:Key="ReadPartBrush" Color="#ccfbf1" />
+                    <SolidColorBrush x:Key="PartHoverBrush" Color="#bfdbfe" />
+                    <SolidColorBrush x:Key="OverlayBrush" Color="#66000000" />
+                    <SolidColorBrush x:Key="IconBrush" Color="#374151" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="CardBackgroundBrush" Color="#1f2937" />
+                    <SolidColorBrush x:Key="CardBorderBrush" Color="#4b5563" />
+                    <SolidColorBrush x:Key="SidebarBackgroundBrush" Color="#111827" />
+                    <SolidColorBrush x:Key="ContentBackgroundBrush" Color="#0b1f1d" />
+                    <SolidColorBrush x:Key="MutedForegroundBrush" Color="#9ca3af" />
+                    <SolidColorBrush x:Key="DangerBrush" Color="#dc2626" />
+                    <SolidColorBrush x:Key="DangerHoverBrush" Color="#ef4444" />
+                    <SolidColorBrush x:Key="PremiumBrush" Color="#4f46e5" />
+                    <SolidColorBrush x:Key="PremiumHoverBrush" Color="#6366f1" />
+                    <SolidColorBrush x:Key="ErrorBackgroundBrush" Color="#450a0a" />
+                    <SolidColorBrush x:Key="ErrorForegroundBrush" Color="#fca5a5" />
+                    <SolidColorBrush x:Key="SuccessForegroundBrush" Color="#86efac" />
+                    <SolidColorBrush x:Key="CurrentPartBrush" Color="#1e3a8a" />
+                    <SolidColorBrush x:Key="ReadPartBrush" Color="#134e4a" />
+                    <SolidColorBrush x:Key="PartHoverBrush" Color="#1e40af" />
+                    <SolidColorBrush x:Key="OverlayBrush" Color="#99000000" />
+                    <SolidColorBrush x:Key="IconBrush" Color="#e5e7eb" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
+
+    <!-- Each view model is displayed by its view. -->
+    <Application.DataTemplates>
+        <DataTemplate DataType="home:HomeViewModel"><homeViews:HomeView /></DataTemplate>
+        <DataTemplate DataType="home:DocumentLibraryViewModel"><homeViews:DocumentLibraryView /></DataTemplate>
+        <DataTemplate DataType="home:CreateDocumentViewModel"><homeViews:CreateDocumentView /></DataTemplate>
+        <DataTemplate DataType="home:SettingsViewModel"><homeViews:SettingsView /></DataTemplate>
+        <DataTemplate DataType="doc:DocumentViewModel"><docViews:DocumentView /></DataTemplate>
+        <DataTemplate DataType="doc:ReaderViewModel"><docViews:ReaderView /></DataTemplate>
+        <DataTemplate DataType="doc:EditorViewModel"><docViews:EditorView /></DataTemplate>
+        <DataTemplate DataType="doc:StudyViewModel"><docViews:StudyView /></DataTemplate>
+        <DataTemplate DataType="doc:ConfigureViewModel"><docViews:ConfigureView /></DataTemplate>
+        <DataTemplate DataType="doc:RecapViewModel"><docViews:RecapView /></DataTemplate>
+        <DataTemplate DataType="doc:PartSettingsViewModel"><docViews:PartSettingsView /></DataTemplate>
+        <DataTemplate DataType="dialogs:ConfirmationDialogViewModel"><dialogViews:ConfirmationDialogView /></DataTemplate>
+        <DataTemplate DataType="dialogs:AddNoteDialogViewModel"><dialogViews:AddNoteDialogView /></DataTemplate>
+    </Application.DataTemplates>
+
+    <Application.Styles>
+        <FluentTheme>
+            <FluentTheme.Palettes>
+                <ColorPaletteResources x:Key="Light" Accent="#0d9488" />
+                <ColorPaletteResources x:Key="Dark" Accent="#14b8a6" />
+            </FluentTheme.Palettes>
+        </FluentTheme>
+        <StyleInclude Source="/Styles/AppStyles.axaml" />
+    </Application.Styles>
+</Application>

@@ -1,0 +1,35 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aixaminator.ViewModels.Dialogs"
+             x:Class="Aixaminator.Views.Dialogs.AddNoteDialogView"
+             x:DataType="vm:AddNoteDialogViewModel"
+             Width="560">
+    <StackPanel Spacing="12">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <TextBlock Classes="h2" Text="{Binding Title}" VerticalAlignment="Center" />
+            <Button Grid.Column="1" Padding="6" ToolTip.Tip="Close" Command="{Binding CancelCommand}">
+                <Path Classes="stroke-icon" Data="{StaticResource Icon.Close}" Width="12" Height="12" />
+            </Button>
+        </Grid>
+
+        <StackPanel IsVisible="{Binding HasReferenceText}">
+            <TextBlock Classes="label" Text="Reference text" />
+            <ScrollViewer MaxHeight="120">
+                <TextBlock x:Name="ReferenceText" Text="{Binding ReferenceText}" TextWrapping="Wrap" FontStyle="Italic" />
+            </ScrollViewer>
+        </StackPanel>
+
+        <StackPanel>
+            <TextBlock Classes="label" Text="{Binding TextLabel}" />
+            <TextBox x:Name="NoteText" Text="{Binding Text}" AcceptsReturn="True" TextWrapping="Wrap"
+                     MinHeight="120" MaxHeight="300" />
+        </StackPanel>
+
+        <StackPanel IsVisible="{Binding IsQuestion}">
+            <TextBlock Classes="label" Text="Answer" />
+            <TextBox x:Name="AnswerText" Text="{Binding Answer}" />
+        </StackPanel>
+
+        <Button x:Name="AddButton" Classes="accent" Content="Add" HorizontalAlignment="Right" Command="{Binding AddCommand}" />
+    </StackPanel>
+</UserControl>

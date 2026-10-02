@@ -1,0 +1,46 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Aixaminator.ViewModels.Document"
+             xmlns:conv="using:Aixaminator.Converters"
+             xmlns:sys="using:System"
+             x:Class="Aixaminator.Views.Document.PartSettingsView"
+             x:DataType="vm:PartSettingsViewModel">
+    <Border Classes="card" Padding="12">
+        <StackPanel Spacing="10">
+            <StackPanel>
+                <TextBlock Classes="label" Text="Name" />
+                <TextBox x:Name="PartNameInput" Text="{Binding Name}" PlaceholderText="Name of this part" />
+            </StackPanel>
+
+            <StackPanel Spacing="6">
+                <TextBlock Classes="label" Text="Custom Colour" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <CheckBox x:Name="UseColourInput" Content="Enable?" IsChecked="{Binding UseCustomColour}" />
+                    <TextBox x:Name="ColourInput" Width="100" Text="{Binding Colour}" IsEnabled="{Binding UseCustomColour}"
+                             ToolTip.Tip="Colour as #rrggbb" VerticalAlignment="Center" />
+                    <Border Width="22" Height="22" CornerRadius="4" VerticalAlignment="Center"
+                            Background="{Binding Colour, Converter={x:Static conv:AppConverters.HexToBrush}}" />
+                </StackPanel>
+                <ItemsControl ItemsSource="{Binding ColourChoices}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel ItemSpacing="4" LineSpacing="4" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="sys:String">
+                            <Button Classes="swatch" ToolTip.Tip="{Binding}"
+                                    Background="{Binding Converter={x:Static conv:AppConverters.HexToBrush}}"
+                                    Command="{Binding $parent[ItemsControl].((vm:PartSettingsViewModel)DataContext).PickColourCommand}"
+                                    CommandParameter="{Binding}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </StackPanel>
+
+            <Separator />
+
+            <Button x:Name="HidePartButton" Classes="danger" Content="Hide Part" Command="{Binding HideCommand}" />
+        </StackPanel>
+    </Border>
+</UserControl>
